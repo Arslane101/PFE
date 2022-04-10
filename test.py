@@ -2,13 +2,9 @@ import random
 from cv2 import merge
 import pandas as pd
 import numpy as np
-import scipy as sp
-import torch
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-import pytorch_lightning as pl
-import itertools
-
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
 np.random.seed(123)
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en releveant et non-relevant"""
 def ChargerDataset(path,th):
@@ -44,19 +40,44 @@ for i in range(n_users):
     for j in range(n_items):
         if pivot.iloc[i,j]==1:
             matrix[i,j]=1
+
 train = GenTrainTest(n_users,0.8)[0]
 test = GenTrainTest(n_users,0.8)[1]
-Input = list()
-Target = list()
+InputTr = list()
+TargetTr = list()
 for nb in train:
  for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
     copy = np.array(matrix[0,:],copy=True)
     copy[j]=0
-    Target.append(j)
+    target = np.zeros(n_items)
+    target[j]=1
+    TargetTr.append(target)
+    InputTr.append(copy)
+
+Input = list()
+Target = list()
+for nb in test:
+ for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
+    copy = np.array(matrix[0,:],copy=True)
+    copy[j]=0
+    target = np.zeros(n_items)
+    target[j]=1
+    Target.append(target)
     Input.append(copy)
-print(len(Input))
-print(np.count_nonzero(matrix==1))
-    
 
+print("Done")
+def accuracy(confusion_matrix):
+   diagonal_sum = confusion_matrix.trace()
+   sum_of_all_elements = confusion_matrix.sum()
+   return diagonal_sum / sum_of_all_elements
+clf = MLPClassifier(
+hidden_layer_sizes=(200,100),max_iter=100,activation='relu',solver='adam',random_state=1)
+clf.fit(InputTr,TargetTr)
+pred = clf.predict(Input)
+#Importing Confusion Matrix
 
-        
+#Comparing the predictions against the actual observations in y_val
+cm = confusion_matrix(pred,Target)
+
+#Printing the accuracy
+print("Accuracy of MLPClassifier : ", accuracy_score(cm)) 
