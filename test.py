@@ -1,4 +1,5 @@
 import random
+from tkinter.tix import InputOnly
 from cv2 import merge
 import pandas as pd
 import numpy as np
@@ -25,7 +26,13 @@ def ListRelevant(matrix,n_items,ind):
         if(matrix[ind,i]==1):
             relevants.append(i)
     return relevants   
-    
+def GenInputUser(matrix,n_items,nb_users,ind):
+    Input = list()
+    for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
+     copy = np.array(matrix[0,:],copy=True)
+     copy[j]=0
+     Input.append(copy)   
+    return Input
     
 """Création des inputs et targets du RDN"""
 ratings = ChargerDataset("ratings.csv",4)
@@ -54,30 +61,12 @@ for nb in train:
     TargetTr.append(target)
     InputTr.append(copy)
 
-Input = list()
-Target = list()
-for nb in test:
- for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
-    copy = np.array(matrix[0,:],copy=True)
-    copy[j]=0
-    target = np.zeros(n_items)
-    target[j]=1
-    Target.append(target)
-    Input.append(copy)
-
-print("Done")
-def accuracy(confusion_matrix):
-   diagonal_sum = confusion_matrix.trace()
-   sum_of_all_elements = confusion_matrix.sum()
-   return diagonal_sum / sum_of_all_elements
 clf = MLPClassifier(
-hidden_layer_sizes=(200,100),max_iter=100,activation='relu',solver='adam',random_state=1)
+hidden_layer_sizes=(200,100),max_iter=80,activation='relu',solver='adam',random_state=1)
 clf.fit(InputTr,TargetTr)
-pred = clf.predict(Input)
-#Importing Confusion Matrix
-
-#Comparing the predictions against the actual observations in y_val
-cm = confusion_matrix(pred,Target)
-
-#Printing the accuracy
-print("Accuracy of MLPClassifier : ", accuracy_score(cm)) 
+print("Training Done")
+Input = GenInputUser(train[0])
+print(train[0])
+pred = clf.predict_proba(Input) 
+print(len(pred))
+print(len(pred[0]))
