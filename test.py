@@ -26,10 +26,10 @@ def ListRelevant(matrix,n_items,ind):
         if(matrix[ind,i]==1):
             relevants.append(i)
     return relevants   
-def GenInputUser(matrix,n_items,nb_users,ind):
+def GenInputUser(matrix,n_items,ind):
     Input = list()
     for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
-     copy = np.array(matrix[0,:],copy=True)
+     copy = np.array(matrix[ind,:],copy=True)
      copy[j]=0
      Input.append(copy)   
     return Input
@@ -54,19 +54,18 @@ InputTr = list()
 TargetTr = list()
 for nb in train:
  for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
-    copy = np.array(matrix[0,:],copy=True)
+    copy = np.array(matrix[nb,:],copy=True)
     copy[j]=0
     target = np.zeros(n_items)
     target[j]=1
     TargetTr.append(target)
     InputTr.append(copy)
-
+print("WTF")
 clf = MLPClassifier(
-hidden_layer_sizes=(200,100),max_iter=80,activation='relu',solver='adam',random_state=1)
+hidden_layer_sizes=(200,100),max_iter=50,activation='relu',solver='adam',random_state=1)
 clf.fit(InputTr,TargetTr)
 print("Training Done")
-Input = GenInputUser(train[0])
+Input = GenInputUser(matrix,n_items,train[0])
 print(train[0])
 pred = clf.predict_proba(Input) 
-print(len(pred))
-print(len(pred[0]))
+print(pred)
