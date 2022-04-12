@@ -1,11 +1,8 @@
 import random
-from tkinter.tix import InputOnly
 from cv2 import merge
 import pandas as pd
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
 from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
 np.random.seed(123)
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en releveant et non-relevant"""
 def ChargerDataset(path,th):
