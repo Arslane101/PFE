@@ -68,6 +68,6 @@ pred = clf.predict_proba(Input)
 TopN = 20
 ListTop = list()
 for i in range(TopN):
-    ListTop.append(np.where(pred[i] == np.amax(pred[i])))
+    ListTop.append(np.argmax(pred[i]))
 print("Voici les films recommandés à l'utilisateur")
 print(ListTop)
