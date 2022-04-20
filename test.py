@@ -3,8 +3,10 @@ from cv2 import merge
 import pandas as pd
 import numpy as np
 from sklearn.neural_network import MLPClassifier
+
+
 np.random.seed(123)
-"""Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en releveant et non-relevant"""
+"""Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
 def ChargerDataset(path,th):
     ratings = pd.read_csv(path,parse_dates=['timestamp'])
     for i in range(ratings.shape[0]):
@@ -15,7 +17,13 @@ def ChargerDataset(path,th):
 def GenTrainTest(nb_users,per):
     nbgen = int(nb_users*per)
     train = random.sample(range(1,nb_users),nbgen)
-    test =  random.sample(range(1,nb_users),nb_users-nbgen)
+    test =  list()
+    i=0
+    while(i< (nb_users-nbgen)):
+        x = random.randrange(1,nb_users)
+        if train.count(x) == 0:
+            test.append(x)
+        else: i+=1     
     return train,test
 def ListRelevant(matrix,n_items,ind):
     relevants = []
@@ -32,7 +40,7 @@ def GenInputUser(matrix,n_items,ind):
     return Input
     
 """Création des inputs et targets du RDN"""
-ratings = ChargerDataset("ratings.csv",4)
+ratings = ChargerDataset("../input/movies/ratings.csv",4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 
 n_users = pivot.index.unique().shape[0]
@@ -64,10 +72,16 @@ clf.fit(InputTr,TargetTr)
 print("Training Done")
 Input = GenInputUser(matrix,n_items,test[0]-1)
 print(test[0])
-pred = clf.predict_proba(Input) 
+pred = clf.predict_proba(Input)
 TopN = 20
 ListTop = list()
-for i in range(TopN):
-    ListTop.append(np.argmax(pred[i]))
+if(len(pred)<20):
+    TopN = len(pred)
+
+ListTop.append(np.argmax(pred[0]))
+i=1
+for i in range(len(pred)):
+    if(ListTop.count(np.argmax(pred[i]))==0):
+        ListTop.append(np.argmax(pred[i]))
 print("Voici les films recommandés à l'utilisateur")
 print(ListTop)
