@@ -40,7 +40,7 @@ def GenInputUser(matrix,n_items,ind):
     return Input
     
 """Création des inputs et targets du RDN"""
-ratings = ChargerDataset("../input/movies/ratings.csv",4)
+ratings = ChargerDataset("ratings.csv",4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 
 n_users = pivot.index.unique().shape[0]
