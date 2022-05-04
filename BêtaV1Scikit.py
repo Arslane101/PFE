@@ -1,10 +1,10 @@
+from audioop import reverse
 import random
-from cv2 import merge
+import csv
 import pandas as pd
 import numpy as np
 from sklearn.neural_network import MLPClassifier
-
-
+import pickle
 np.random.seed(123)
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
 def ChargerDataset(path,th):
@@ -31,13 +31,6 @@ def ListRelevant(matrix,n_items,ind):
         if(matrix[ind,i]==1):
             relevants.append(i)
     return relevants   
-def GenInputUser(matrix,n_items,ind):
-    Input = list()
-    for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
-     copy = np.array(matrix[ind-1,:],copy=True)
-     copy[j]=0
-     Input.append(copy)   
-    return Input
     
 """Création des inputs et targets du RDN"""
 ratings = ChargerDataset("ratings.csv",4)
@@ -66,22 +59,14 @@ for nb in train:
     TargetTr.append(target)
     InputTr.append(copy)
 print("WTF")
-clf = MLPClassifier(
+clf = pickle.load(open('modelrec.sav','rb'))
+"""clf = MLPClassifier(
 hidden_layer_sizes=(200,100),max_iter=80,activation='relu',solver='adam',random_state=1)
-clf.fit(InputTr,TargetTr)
+clf.fit(InputTr,TargetTr)"""
 print("Training Done")
-Input = GenInputUser(matrix,n_items,test[0]-1)
-print(test[0])
+##pickle.dump(clf,open('modelrec.sav','wb'))
+Input = list()
+copy = np.array(matrix[test[0]-1,:],copy=True)
+Input.append(copy)
 pred = clf.predict_proba(Input)
-TopN = 20
-ListTop = list()
-if(len(pred)<20):
-    TopN = len(pred)
-
-ListTop.append(np.argmax(pred[0]))
-i=1
-for i in range(len(pred)):
-    if(ListTop.count(np.argmax(pred[i]))==0):
-        ListTop.append(np.argmax(pred[i]))
-print("Voici les films recommandés à l'utilisateur")
-print(ListTop)
+print(np.argsort(pred[0])[::-1])
