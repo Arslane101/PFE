@@ -3,6 +3,7 @@ import random
 import csv
 import pandas as pd
 import numpy as np
+from sklearn.metrics import precision_score
 from sklearn.neural_network import MLPClassifier
 import pickle
 np.random.seed(123)
@@ -31,7 +32,15 @@ def ListRelevant(matrix,n_items,ind):
         if(matrix[ind,i]==1):
             relevants.append(i)
     return relevants   
-    
+def GenInputTargetUser(matrix,n_items,ind):
+    Input = list()
+    Target = list()
+    for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
+     copy = np.array(matrix[ind-1,:],copy=True)
+     copy[j]=0
+     Target.append(j)
+     Input.append(copy)   
+    return Input,Target
 """Création des inputs et targets du RDN"""
 ratings = ChargerDataset("ratings.csv",4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
@@ -46,10 +55,17 @@ for i in range(n_users):
         if pivot.iloc[i,j]==1:
             matrix[i,j]=1
 
+##clf = pickle.load(open('modelrec.sav','rb'))
+
+clf = MLPClassifier(
+hidden_layer_sizes=(400,200),max_iter=100,activation='relu',solver='adam')
 train = GenTrainTest(n_users,0.8)[0]
 test = GenTrainTest(n_users,0.8)[1]
-InputTr = list()
-TargetTr = list()
+
+InputTr=list()
+TargetTr=list()
+taille = len(train)
+k=0
 for nb in train:
  for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
     copy = np.array(matrix[nb-1,:],copy=True)
@@ -58,15 +74,39 @@ for nb in train:
     target[j]=1
     TargetTr.append(target)
     InputTr.append(copy)
+ if(k==(taille/4)-1):
+        clf.fit(InputTr,TargetTr)
+        InputTr.clear()
+        TargetTr.clear()
+        k=0
+        print("step")
+ else : k+=1
+        
 print("WTF")
-clf = pickle.load(open('modelrec.sav','rb'))
-"""clf = MLPClassifier(
-hidden_layer_sizes=(200,100),max_iter=80,activation='relu',solver='adam',random_state=1)
-clf.fit(InputTr,TargetTr)"""
+    
+
 print("Training Done")
-##pickle.dump(clf,open('modelrec.sav','wb'))
+pickle.dump(clf,open('modelrec.sav','wb'))
+
+Input = GenInputTargetUser(matrix,n_items,test[0]-1)[0]
+Target = GenInputTargetUser(matrix,n_items,test[0]-1)[1]
+pred = clf.predict(Input)
+print(pred)
+print("--------")
+print(Target)
+print(precision_score(Target,pred,average=None))
+
+
+"""
 Input = list()
 copy = np.array(matrix[test[0]-1,:],copy=True)
 Input.append(copy)
 pred = clf.predict_proba(Input)
+
 print(np.argsort(pred[0])[::-1])
+TopN = 20
+recID = list()
+for i in range(TopN):
+    recID.append(list_movies[pred[0][i]])
+print("Liste des Films Recommendés")
+print(recID)"""
