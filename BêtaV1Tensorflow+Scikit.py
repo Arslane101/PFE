@@ -61,26 +61,24 @@ for nb in train:
  for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
     copy = np.array(matrix[nb-1,:],copy=True)
     copy[j]=0
-    copy = np.reshape(copy,(1, n_items))
     target = np.zeros(n_items)
     target[j]=1
-    target = np.reshape(target,(1, n_items))
     InputT.append(copy)
     TargetT.append(target)
-print(len(InputT))
-print(TargetT)
+
 InputTr = np.zeros((len(InputT),n_items))
 TargetTr = np.zeros((len(TargetT),n_items))
 for i in range (len(InputT)):
   InputTr[i]=InputT[i]
   TargetTr[i]=TargetT[i]
+print("L7a9t")
 model = Sequential()
 model.add(Input(shape=(len(InputTr),n_items)))
 model.add(Dense(50, activation='relu'))
 model.add(Dense(n_items,activation='softmax'))
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 model.summary()
-history = model.fit(InputTr,TargetTr, epochs=100)
+history = model.fit(InputTr,TargetTr, epochs=100,batch_size=5)
  
       
 print("WTF")
