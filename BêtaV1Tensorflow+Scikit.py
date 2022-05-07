@@ -4,7 +4,7 @@ import csv
 import pandas as pd
 import numpy as np
 from keras.models import Sequential
-from keras.layers import Dense,Conv1D,Flatten
+from keras.layers import Dense,Conv1D,Dropout,Flatten
 import matplotlib as plt
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
 def ChargerDataset(path,th):
@@ -28,61 +28,58 @@ def GenTrainTest(nb_users,per):
 def ListRelevant(matrix,n_items,ind):
     relevants = []
     for i in range(n_items):
-        if(matrix[ind,i]==1):
+        if(matrix.iloc[ind,i]==1):
             relevants.append(i)
     return relevants   
 def GenInputTargetUser(matrix,n_items,ind):
     Input = list()
     Target = list()
     for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
-     copy = np.array(matrix[ind-1,:],copy=True)
+     copy = np.array(matrix[ind,:],copy=True)
      copy[j]=0
      Target.append(j)
      Input.append(copy)   
     return Input,Target
+def Shit(n):
+    largest_divisor = 0
+    for i in range(2, n):
+        if n % i == 0:
+            largest_divisor = i
+    return largest_divisor
 """Création des inputs et targets du RDN"""
-ratings = ChargerDataset("/content/ratings.csv",4)
+ratings = ChargerDataset("../input/movies/ratings.csv",4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique()
 list_users = pivot.index.unique()
-matrix = np.zeros((n_users,n_items))
-for i in range(n_users):
-    for j in range(n_items):
-            matrix[i,j]=pivot.iloc[i,j]
-
 train = GenTrainTest(n_users,0.8)[0]
 test = GenTrainTest(n_users,0.8)[1]
-InputT=list()
-TargetT=list()
+InputTr=list()
+TargetTr=list()
+model = Sequential()
+model.add(Input(shape=(1,n_items)))
+model.add(Dense(20, activation='relu'))
+model.add(Dropout(rate=0.2))
+model.add(Dense(10,activation='relu'))
+model.add(Dropout(rate=0.2))
+model.add(Dense(n_items,activation='softmax'))
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.summary()
 for nb in train:
- for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
-    copy = np.array(matrix[nb-1,:],copy=True)
+ for j in  ListRelevant(pivot,n_items,nb):
+    copy = np.array(pivot.iloc[nb,:],copy=True)
     copy[j]=0
+    copy = np.reshape(copy,(1, n_items))
     target = np.zeros(n_items)
     target[j]=1
-    InputT.append(copy)
-    TargetT.append(target)
-
-InputTr = np.zeros((len(InputT),n_items))
-TargetTr = np.zeros((len(TargetT),n_items))
-for i in range (len(InputT)):
-  InputTr[i]=InputT[i]
-  TargetTr[i]=TargetT[i]
-print("L7a9t")
-model = Sequential()
-model.add(Input(shape=(len(InputTr),n_items)))
-model.add(Dense(50, activation='relu'))
-model.add(Dense(n_items,activation='softmax'))
-model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-model.summary()
-history = model.fit(InputTr,TargetTr, epochs=100,batch_size=5)
- 
-      
+    target = np.reshape(target,(1, n_items))
+    InputTr.append(copy)
+    TargetTr.append(target)
 print("WTF")
-
+size=len(InputTr)
+history = model.fit(InputTr,TargetTr, epochs=80,batch_size=(len(InputTr)/Shit(size))
 
 # list all data in history
 print(history.history.keys())
