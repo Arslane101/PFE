@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense,Conv1D,Dropout,Flatten
+import tensorflow as tf
 import matplotlib as plt
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
 def ChargerDataset(path,th):
@@ -79,7 +80,7 @@ for nb in train:
     TargetTr.append(target)
 print("WTF")
 size=len(InputTr)
-history = model.fit(InputTr,TargetTr, epochs=80,batch_size=(len(InputTr)/Shit(size))
+history = model.fit(InputTr,TargetTr, epochs=80,batch_size=(len(InputTr)/Shit(size)))
 
 # list all data in history
 print(history.history.keys())
