@@ -1,4 +1,4 @@
-from audioop import reverse
+from keras.engine.input_layer import Input
 import random
 import csv
 import pandas as pd
@@ -41,7 +41,7 @@ def GenInputTargetUser(matrix,n_items,ind):
      Input.append(copy)   
     return Input,Target
 """Création des inputs et targets du RDN"""
-ratings = ChargerDataset("ratings.csv",4)
+ratings = ChargerDataset("/content/ratings.csv",4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 
 n_users = pivot.index.unique().shape[0]
@@ -51,46 +51,41 @@ list_users = pivot.index.unique()
 matrix = np.zeros((n_users,n_items))
 for i in range(n_users):
     for j in range(n_items):
-        if pivot.iloc[i,j]==1:
-            matrix[i,j]=1
+            matrix[i,j]=pivot.iloc[i,j]
 
 train = GenTrainTest(n_users,0.8)[0]
 test = GenTrainTest(n_users,0.8)[1]
-InputTr=list()
-TargetTr=list()
+InputT=list()
+TargetT=list()
 for nb in train:
  for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
     copy = np.array(matrix[nb-1,:],copy=True)
     copy[j]=0
-    copy = np.expand_dims(copy,axis=1)
+    copy = np.reshape(copy,(1, n_items))
     target = np.zeros(n_items)
     target[j]=1
-    TargetTr.append(target)
-    InputTr.append(copy)
-for nb in test:
- for i, j in zip(range(len(ListRelevant(matrix,n_items,nb))), ListRelevant(matrix,n_items,nb)):
-    copy = np.array(matrix[nb-1,:],copy=True)
-    copy[j]=0
-    copy = np.expand_dims(copy,axis=1)
-    target = np.zeros(n_items)
-    target[j]=1
-    TargetTr.append(target)
-    InputTr.append(copy)             
+    target = np.reshape(target,(1, n_items))
+    InputT.append(copy)
+    TargetT.append(target)
+print(len(InputT))
+print(TargetT)
+InputTr = np.zeros((len(InputT),n_items))
+TargetTr = np.zeros((len(TargetT),n_items))
+for i in range (len(InputT)):
+  InputTr[i]=InputT[i]
+  TargetTr[i]=TargetT[i]
+model = Sequential()
+model.add(Input(shape=(len(InputTr),n_items)))
+model.add(Dense(50, activation='relu'))
+model.add(Dense(n_items,activation='softmax'))
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.summary()
+history = model.fit(InputTr,TargetTr, epochs=100)
+ 
+      
 print("WTF")
-"""model = Sequential()
-model.add(Dense(200, input_dim=n_items, activation='relu'))
-model.add(Dense(100, activation='relu'))
-model.add(Dense(n_items,activation='si'))
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])""" 
-#defining model
-model=Sequential()
-model.add(Conv1D(64, kernel_size=3, activation="relu", input_shape=(1,n_items,1)))
-model.add(Conv1D(32, kernel_size=3, activation="relu"))
-model.add(Flatten())
-model.add(Dense(10, activation="softmax"))
-#compiling the model
-model.compile(loss='sparse_categorical_crossentropy',optimizer='adam',metrics=['accuracy'])
-history = model.fit(InputTr, TargetTr, epochs=10, batch_size=10)
+
+
 # list all data in history
 print(history.history.keys())
 # summarize history for accuracy
