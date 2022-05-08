@@ -7,6 +7,7 @@ from keras.models import Sequential
 from keras.layers import Dense,Conv1D,Dropout,Flatten
 import tensorflow as tf
 import matplotlib as plt
+import gc
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
 def ChargerDataset(path,th):
     ratings = pd.read_csv(path,parse_dates=['timestamp'])
@@ -41,47 +42,43 @@ def GenInputTargetUser(matrix,n_items,ind):
      Target.append(j)
      Input.append(copy)   
     return Input,Target
-def Shit(n):
-    largest_divisor = 0
-    for i in range(2, n):
-        if n % i == 0:
-            largest_divisor = i
-    return largest_divisor
 """Création des inputs et targets du RDN"""
-ratings = ChargerDataset("../input/movies/ratings.csv",4)
+gc.enable()
+ratings = ChargerDataset("../input/the-movies-dataset/ratings_small.csv",4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-
+ratings = None
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique()
 list_users = pivot.index.unique()
 train = GenTrainTest(n_users,0.8)[0]
 test = GenTrainTest(n_users,0.8)[1]
-InputTr=list()
-TargetTr=list()
+i=0
+nbrel=0
+for nb in train:
+    nbrel = nbrel + len(ListRelevant(pivot,n_items,nb))
+    
+InputTr = np.zeros((nbrel,n_items))
+TargetTr = np.zeros((nbrel,1))
+for nb in train:
+  for j in  ListRelevant(pivot,n_items,nb):
+        InputTr[i] = np.array(pivot.iloc[nb,:],copy=True)
+        InputTr[i,j]=0
+        TargetTr[i,0]=j
+        i+=1
+
 model = Sequential()
-model.add(Input(shape=(1,n_items)))
-model.add(Dense(20, activation='relu'))
+model.add(Input(shape=(nbrel,n_items)))
+model.add(Dense(200, activation='relu'))
 model.add(Dropout(rate=0.2))
-model.add(Dense(10,activation='relu'))
+model.add(Dense(100,activation='relu'))
 model.add(Dropout(rate=0.2))
 model.add(Dense(n_items,activation='softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 model.summary()
-for nb in train:
- for j in  ListRelevant(pivot,n_items,nb):
-    copy = np.array(pivot.iloc[nb,:],copy=True)
-    copy[j]=0
-    copy = np.reshape(copy,(1, n_items))
-    target = np.zeros(n_items)
-    target[j]=1
-    target = np.reshape(target,(1, n_items))
-    InputTr.append(copy)
-    TargetTr.append(target)
-print("WTF")
-size=len(InputTr)
-history = model.fit(InputTr,TargetTr, epochs=80,batch_size=(len(InputTr)/Shit(size)))
-
+TargetTr = tf.utils.to_categorical(TargetTr)
+history = model.fit(InputTr,TargetTr,epochs=80,batch_size=150)
+"""
 # list all data in history
 print(history.history.keys())
 # summarize history for accuracy
@@ -99,4 +96,4 @@ plt.title('model loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
-plt.show()
+plt.show()"""
