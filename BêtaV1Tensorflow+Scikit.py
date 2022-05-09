@@ -6,7 +6,7 @@ import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense,Conv1D,Dropout,Flatten
 import tensorflow as tf
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import gc
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
 def ChargerDataset(path,th):
@@ -44,7 +44,7 @@ def GenInputTargetUser(matrix,n_items,ind):
     return Input,Target
 """Création des inputs et targets du RDN"""
 gc.enable()
-ratings = ChargerDataset("../input/the-movies-dataset/ratings_small.csv",4)
+ratings = ChargerDataset("../input/movies/ratings.csv",4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 ratings = None
 n_users = pivot.index.unique().shape[0]
@@ -59,25 +59,24 @@ for nb in train:
     nbrel = nbrel + len(ListRelevant(pivot,n_items,nb))
     
 InputTr = np.zeros((nbrel,n_items))
-TargetTr = np.zeros((nbrel,1))
+TargetTr = np.zeros((nbrel))
 for nb in train:
   for j in  ListRelevant(pivot,n_items,nb):
         InputTr[i] = np.array(pivot.iloc[nb,:],copy=True)
         InputTr[i,j]=0
-        TargetTr[i,0]=j
+        TargetTr[i]=j
         i+=1
 
 model = Sequential()
 model.add(Input(shape=(nbrel,n_items)))
-model.add(Dense(200, activation='relu'))
+model.add(Dense(700, activation='selu'))
 model.add(Dropout(rate=0.2))
-model.add(Dense(100,activation='relu'))
+model.add(Dense(500,activation='selu'))
 model.add(Dropout(rate=0.2))
 model.add(Dense(n_items,activation='softmax'))
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 model.summary()
-TargetTr = tf.utils.to_categorical(TargetTr)
-history = model.fit(InputTr,TargetTr,epochs=80,batch_size=150)
+history = model.fit(InputTr,TargetTr,epochs=50,batch_size=150)
 """
 # list all data in history
 print(history.history.keys())
