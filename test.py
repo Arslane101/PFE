@@ -44,9 +44,8 @@ def GenInputTargetUser(pivot,n_items,ind):
         i+=1 
     return Input,Target
 """Création des inputs et targets du RDN"""
-gc.enable()
-ratings = ChargerDataset("../input/movies/ratings.csv",4)
-pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+ratings = ChargerDataset("ratings.csv",4)
+"""pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 ratings = None
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
@@ -113,4 +112,5 @@ plt.show()
 
 print("Evaluate on test data")
 results = model.evaluate(InputTe, TargetTe, batch_size=128)
-print("test loss, test acc:", results)
+print("test loss, test acc:", results)"""
+print(ratings)
