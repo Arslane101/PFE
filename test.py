@@ -6,8 +6,22 @@ from keras.models import Sequential
 from keras.layers import Dense,Dropout
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import gc
+from SPARQLWrapper import SPARQLWrapper, CSV
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
+
+"""Template SPARQL Request : 
+ PREFIX dbpedia:<http://dbpedia.org/>
+ PREFIX dbo:<http://dbpedia.org/ontology/>
+ PREFIX dbp:<http://dbpedia.org/property/>
+select ?name ?gross ?country ?director
+where {
+values ?input {<http://dbpedia.org/resource/Pulp_Fiction>}
+?input dbp:name ?name.
+?input dbo:gross ?gross.
+ ?input dbp:country ?country.
+ ?input dbp:director ?directed.
+?directed dbp:q ?director 
+ }"""
 def ChargerDataset(path,th):
     ratings = pd.read_csv(path,parse_dates=['timestamp'])
     for i in range(ratings.shape[0]):
@@ -44,14 +58,41 @@ def GenInputTargetUser(pivot,n_items,ind):
         i+=1 
     return Input,Target
 """Création des inputs et targets du RDN"""
-ratings = ChargerDataset("ratings.csv",4)
-"""pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-ratings = None
-n_users = pivot.index.unique().shape[0]
-n_items = pivot.columns.unique().shape[0]
-list_movies = pivot.columns.unique()
-list_users = pivot.index.unique()
-train = GenTrainTest(n_users,0.8)[0]
+"""ratings = ChargerDataset("ratings.csv",4)
+movies = pd.read_csv("movies.csv")
+pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+"""
+sparql = SPARQLWrapper("http://dbpedia.org/sparql")
+sparql.setReturnFormat(CSV)
+text_file = open("movietitles.txt", "r")
+title = text_file.readlines()
+values = list()
+f = open("results.txt",'w')
+for i in range(len(title)):
+    title[i] = "_".join(title[i].strip().split(" "))
+    input = "<http://dbpedia.org/resource/"+title[i]+">"
+    sparql.setQuery("""
+      PREFIX dbpedia:<http://dbpedia.org/>
+ PREFIX dbo:<http://dbpedia.org/ontology/>
+ PREFIX dbp:<http://dbpedia.org/property/>
+select ?name ?gross ?country ?director
+where {
+values ?input {"""+input+"""}
+?input dbp:name ?name.
+?input dbo:gross ?gross.
+ ?input dbp:country ?country.
+ ?input dbo:director ?directed.
+?directed dbp:name ?director. 
+}
+""")
+    try:
+       ret= sparql.queryAndConvert()
+       f.write(ret)
+       f.write("\n")
+    except Exception as e:
+       print(e)
+f.close()
+"""train = GenTrainTest(n_users,0.8)[0]
 test = GenTrainTest(n_users,0.8)[1]
 i=0
 nbrel=0
@@ -113,4 +154,3 @@ plt.show()
 print("Evaluate on test data")
 results = model.evaluate(InputTe, TargetTe, batch_size=128)
 print("test loss, test acc:", results)"""
-print(ratings)
