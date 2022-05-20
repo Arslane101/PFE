@@ -58,26 +58,21 @@ def GenInputTargetUser(pivot,n_items,ind):
         i+=1 
     return Input,Target
 """Création des inputs et targets du RDN"""
-"""ratings = ChargerDataset("ratings.csv",4)
-movies = pd.read_csv("movies.csv")
-pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-"""
+
 sparql = SPARQLWrapper("http://dbpedia.org/sparql")
 sparql.setReturnFormat(CSV)
-text_file = open("movietitles.txt", "r")
-title = text_file.readlines()
+movieslist = pd.read_csv("mappings1M.csv",sep=";")
+uri = movieslist['URI'].unique()
 values = list()
 f = open("results.txt",'w')
-for i in range(len(title)):
-    title[i] = "_".join(title[i].strip().split(" "))
-    input = "<http://dbpedia.org/resource/"+title[i]+">"
+for i in range(len(uri)):
     sparql.setQuery("""
       PREFIX dbpedia:<http://dbpedia.org/>
  PREFIX dbo:<http://dbpedia.org/ontology/>
  PREFIX dbp:<http://dbpedia.org/property/>
 select ?name ?gross ?country ?director
 where {
-values ?input {"""+input+"""}
+values ?input {<"""+uri[i]+""">}
 ?input dbp:name ?name.
 ?input dbo:gross ?gross.
  ?input dbp:country ?country.
@@ -87,12 +82,13 @@ values ?input {"""+input+"""}
 """)
     try:
        ret= sparql.queryAndConvert()
-       f.write(ret)
-       f.write("\n")
+       f.write(ret.decode())
+       print(i)
     except Exception as e:
        print(e)
 f.close()
-"""train = GenTrainTest(n_users,0.8)[0]
+"""
+train = GenTrainTest(n_users,0.8)[0]
 test = GenTrainTest(n_users,0.8)[1]
 i=0
 nbrel=0
