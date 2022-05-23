@@ -2,14 +2,21 @@ from keras.engine.input_layer import Input
 import random
 import pandas as pd
 import numpy as np
-from keras.models import Sequential
+from keras.models import Sequential,load_model
 from keras.layers import Dense,Dropout
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import gc
+from yaml import load
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
 def ChargerDataset(path,th):
     ratings = pd.read_csv(path,parse_dates=['timestamp'])
+    """rand_userIds = np.random.choice(ratings['userId'].unique(), 
+                                size=int(len(ratings['userId'].unique())*per), 
+                                replace=False)
+
+    ratings = ratings.loc[ratings['userId'].isin(rand_userIds)]
+    ls = []
+    ls.extend(ratings.index[(ratings['rating']>=0)])"""
     for i in range(ratings.shape[0]):
         if ratings['rating'][i] >= float(th):
             ratings.loc[i,'rating']=float(1)
@@ -44,9 +51,7 @@ def GenInputTargetUser(pivot,n_items,ind):
         i+=1 
     return Input,Target
 """Création des inputs et targets du RDN"""
-gc.enable()
-ratings = ChargerDataset("../input/movies/ratings.csv",4)
-pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+"""
 ratings = None
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
@@ -67,19 +72,6 @@ for nb in train:
         InputTr[i,j]=0
         TargetTr[i]=j
         i+=1
-
-
-model = Sequential()
-model.add(Input(shape=(nbrel,n_items)))
-model.add(Dense(600, activation='elu'))
-model.add(Dropout(rate=0.2))
-model.add(Dense(300,activation='elu'))
-model.add(Dropout(rate=0.2))
-model.add(Dense(n_items,activation='softmax'))
-model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-model.summary()
-history = model.fit(InputTr,TargetTr,validation_split=0.1,epochs=150,batch_size=250)
-
 nbrel=0
 for nb in test:
     nbrel = nbrel + len(ListRelevant(pivot,n_items,nb))
@@ -92,6 +84,26 @@ for nb in test:
         InputTe[i,j]=0
         TargetTe[i]=j
         i+=1
+
+np.savetxt("InputTe.txt",InputTe.astype(int),fmt='%d')
+np.savetxt("TargetTe.txt",TargetTe.astype(int),fmt='%d')
+np.savetxt("InputTr.txt",InputTr.astype(int),fmt='%d')
+np.savetxt("TargetTr.txt",TargetTr.astype(int),fmt='%d')
+"""
+InputTr = np.loadtxt("InputTr.txt")
+InputTe = np.loadtxt("InputTe.txt")
+TargetTr = np.loadtxt("TargetTr.txt")
+TargetTe = np.loadtxt("TargetTe.txt")
+"""
+model = Sequential()
+model.add(Input(shape=(InputTr.shape[1])))
+model.add(Dense(200, activation='relu'))
+model.add(Dropout(rate=0.2))
+model.add(Dense(100,activation='relu'))
+model.add(Dense(InputTr.shape[1],activation='softmax'))
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.summary()
+
 # list all data in history
 print(history.history.keys())
 # summarize history for accuracy
@@ -114,3 +126,21 @@ plt.show()
 print("Evaluate on test data")
 results = model.evaluate(InputTe, TargetTe, batch_size=128)
 print("test loss, test acc:", results)
+"""
+model = load_model("model1m")
+movies = pd.read_csv("ml-100k/item.csv",delimiter=";")
+ratings = ChargerDataset("ml-100k/ratings.csv",4)
+pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+testUser = np.array(pivot.iloc[19,:],copy=True)
+testUser = testUser.reshape(1,testUser.shape[0])
+rev=ListRelevant(pivot,testUser.shape[1],19)
+testUser[0,rev[0]]=0
+results = model.predict(testUser)
+results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
+print(results.shape)
+print(results[:5])
+for i in range(5):
+    print(movies['Title'][results[i]])
+print("-------")
+print("The target : ")
+print(movies['Title'][rev[0]])

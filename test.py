@@ -70,14 +70,13 @@ for i in range(len(uri)):
       PREFIX dbpedia:<http://dbpedia.org/>
  PREFIX dbo:<http://dbpedia.org/ontology/>
  PREFIX dbp:<http://dbpedia.org/property/>
-select ?name ?gross ?country ?director
+select ?name  ?country ?gross ?director
 where {
 values ?input {<"""+uri[i]+""">}
 ?input dbp:name ?name.
-?input dbo:gross ?gross.
  ?input dbp:country ?country.
- ?input dbo:director ?directed.
-?directed dbp:name ?director. 
+ ?input dbo:gross ?gross.
+ ?input dbp:director ?director. 
 }
 """)
     try:
