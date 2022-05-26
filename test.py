@@ -1,11 +1,8 @@
-from keras.engine.input_layer import Input
+
+from msilib.schema import Directory
 import random
 import pandas as pd
 import numpy as np
-from keras.models import Sequential
-from keras.layers import Dense,Dropout
-import tensorflow as tf
-import matplotlib.pyplot as plt
 from SPARQLWrapper import SPARQLWrapper, CSV
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
 
@@ -17,10 +14,9 @@ select ?name ?gross ?country ?director
 where {
 values ?input {<http://dbpedia.org/resource/Pulp_Fiction>}
 ?input dbp:name ?name.
-?input dbo:gross ?gross.
+?input dbp:gross ?gross.
  ?input dbp:country ?country.
- ?input dbp:director ?directed.
-?directed dbp:q ?director 
+ ?input dbp:director ?director
  }"""
 def ChargerDataset(path,th):
     ratings = pd.read_csv(path,parse_dates=['timestamp'])
@@ -58,28 +54,27 @@ def GenInputTargetUser(pivot,n_items,ind):
         i+=1 
     return Input,Target
 """Création des inputs et targets du RDN"""
-
 sparql = SPARQLWrapper("http://dbpedia.org/sparql")
 sparql.setReturnFormat(CSV)
-movieslist = pd.read_csv("mappings1M.csv",sep=";")
-uri = movieslist['URI'].unique()
+movieslist = (open("Missing.txt",'r')).readlines()
 values = list()
-f = open("results.txt",'w')
-for i in range(len(uri)):
+f = open("resultssparql.txt",'w')
+for i in range(len(movieslist)):
     sparql.setQuery("""
       PREFIX dbpedia:<http://dbpedia.org/>
  PREFIX dbo:<http://dbpedia.org/ontology/>
  PREFIX dbp:<http://dbpedia.org/property/>
-select ?name  ?country ?gross ?director
+select ?name ?country ?gross ?director
 where {
-values ?input {<"""+uri[i]+""">}
+values ?input {<"""+movieslist[i].strip()+""">}
 ?input dbp:name ?name.
- ?input dbp:country ?country.
- ?input dbo:gross ?gross.
- ?input dbp:director ?director. 
+ ?input dbo:director ?director.
+ OPTIONAL { ?input dbo:gross ?gross.
+ ?input dbp:country ?country. }
 }
 """)
     try:
+       print(movieslist[i].strip())
        ret= sparql.queryAndConvert()
        f.write(ret.decode())
        print(i)
