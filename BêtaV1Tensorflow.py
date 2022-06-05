@@ -138,10 +138,11 @@ def UserMostMoviesbyCountry(pivot,country):
 
 
 """Création des inputs et targets du RDN"""
+"""
 ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
 
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-"""
+
 ratings = ContextualisationDataset(ratings,4,[],['United States'])
 moviesr = Relevant(pivot)
 items = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
@@ -229,13 +230,13 @@ print("test loss, test acc:", results)
 
 
 """
-
+"""
 InputTr = np.loadtxt("InputTr.txt")
 TargetTr = np.loadtxt("TargetTr.txt")
 InputTe = np.loadtxt("InputTe.txt")
 TargetTe = np.loadtxt("TargetTe.txt")
 model = load_model("ml-100k")
-movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
+movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")"""
 """
 relevanttotal = Relevant(pivot)
 testmovies = random.sample(relevanttotal,80)
@@ -289,6 +290,7 @@ while(i<n):
 print(precisions)
 print("_______________")
 print(recalls)"""
+"""
 usertable = np.array(pivot.iloc[0,:],copy=True)
 testUser = usertable.reshape(1,usertable.shape[0])
 results = model.predict(testUser)
@@ -314,4 +316,4 @@ while(i<n):
 print(recalls)
 print(precisions)
 print(usertable[:100])
-print(rev)
+print(rev)"""
