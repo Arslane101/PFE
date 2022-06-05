@@ -47,9 +47,19 @@ def ListRel(array):
         if(array[i]==1):
             relevants.append(i)
     return relevants 
+def GenRandomInputs(nb_inputs,nb_items):
+    inputs = np.zeros((nb_inputs,nb_items))
+    for i in range(nb_inputs):
+        nbratings = random.randint(20,80)
+        positions = random.sample(range(0,nb_items-1),nbratings)
+        for j in positions:
+            inputs[i,j]=1
+    return inputs
+
 movies = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
-list_countries = movies['country'].unique().tolist()
-list_countries.remove(np.nan)
+ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
+pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+list_countries = movies['country'].unique()
 count_countries = np.zeros(len(list_countries))
 j=0
 for country in list_countries:
@@ -64,4 +74,7 @@ count_countries = np.argsort(count_countries)[::-1]
 print(list_countries)
 print(count_countries)
 print(values_countries)
-
+inputs = GenRandomInputs(5,pivot.shape[1])
+print(len(inputs))
+print(inputs)
+np.savetxt("RandomUsers.txt",inputs.astype(int),fmt='%d')
