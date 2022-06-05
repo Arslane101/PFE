@@ -41,22 +41,53 @@ def GenInputTargetUser(pivot,n_items,ind):
         Target[i]=j
         i+=1 
     return Input,Target
+def ListRel(array):
+    relevants = []
+    for i in range(len(array)):
+        if(array[i]==1):
+            relevants.append(i)
+    return relevants 
 """Création des inputs et targets du RDN"""
 ratings = np.loadtxt("ShortModel/MC100K-deepRatings.txt")
+InputTr = np.loadtxt("ShortModel/MC100K-deepXTrain.txt")
+TargetTr = np.loadtxt("ShortModel/MC100K-deepYTrain.txt")
 InputTe = np.loadtxt("ShortModel/MC100K-deepXTest.txt")
 TargetTe = np.loadtxt("ShortModel/MC100K-deepYTest.txt")
 movies = pd.read_csv("ml-100k/item.csv",delimiter="|")
-model = load_model("model100k")
+model = Sequential()
+model.add(Input(shape=(InputTr.shape[1])))
+model.add(Dense(200, activation='relu'))
+model.add(Dropout(rate=0.2))
+model.add(Dense(100, activation='relu'))
+model.add(Dropout(rate=0.2))
+model.add(Dense(InputTr.shape[1],activation='softmax'))
+model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
+model.summary()
+history = model.fit(InputTr,TargetTr,validation_data=(InputTe,TargetTe),epochs=80,batch_size=250)
 print("Evaluate on test data")
 results = model.evaluate(InputTe, TargetTe, batch_size=128)
 print("test loss, test acc:", results)
 testUser = ratings[30,:]
+rev=ListRel(testUser)
 testUser = testUser.reshape(1,testUser.shape[0])
 results = model.predict(testUser)
 results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
-print(results.shape)
-print(results[:25])
-for i in range(25):
-    print(movies.iloc[results[i]+1,1])
 print("-------")
-print(ListRelevant(ratings,testUser.shape[1],30))
+
+n=96
+i=1
+hr=0
+while(i<n):
+    hr=0
+    temp =results[:i]
+    for j in range(len(rev)):
+         if rev[j] in temp:
+          hr+=1
+    print("Number of recommendations : "+format(i))
+    print("number recommended"+format(hr))
+    print("Average Precision :"+format(hr/i))
+    print("Average Recall: "+format(hr/len(rev)))
+    print("________")
+    i+=5
+
+       

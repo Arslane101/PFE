@@ -56,25 +56,24 @@ def GenInputTargetUser(pivot,n_items,ind):
 """Création des inputs et targets du RDN"""
 sparql = SPARQLWrapper("http://dbpedia.org/sparql")
 sparql.setReturnFormat(CSV)
-movieslist = (open("Missing.txt",'r')).readlines()
-values = list()
+movieslist = pd.read_csv("ml-100K/copy.csv",delimiter=";")
+values = movieslist['URI'].unique()
 f = open("resultssparql.txt",'w')
-for i in range(len(movieslist)):
+for i in range(len(values)):
     sparql.setQuery("""
       PREFIX dbpedia:<http://dbpedia.org/>
  PREFIX dbo:<http://dbpedia.org/ontology/>
  PREFIX dbp:<http://dbpedia.org/property/>
-select ?name ?country ?gross ?director
+select ?name ?release
 where {
-values ?input {<"""+movieslist[i].strip()+""">}
-?input dbp:name ?name.
- ?input dbo:director ?director.
- OPTIONAL { ?input dbo:gross ?gross.
- ?input dbp:country ?country. }
+values ?input {<"""+values[i]+""">}
+?input dbo:name ?name.
+ OPTIONAL { 
+ ?input dbp:released ?release. }
 }
 """)
     try:
-       print(movieslist[i].strip())
+       print(values[i])
        ret= sparql.queryAndConvert()
        f.write(ret.decode())
        print(i)
