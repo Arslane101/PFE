@@ -9,6 +9,7 @@ from keras.optimizers import Adam
 from sklearn.metrics import jaccard_score
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from torch import double
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
     
 def ChargerDataset(path,th):
@@ -138,25 +139,16 @@ def UserMostMoviesbyCountry(pivot,country):
 
 
 """Création des inputs et targets du RDN"""
-"""
+
 ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
 
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 
-ratings = ContextualisationDataset(ratings,4,[],['United States'])
-moviesr = Relevant(pivot)
-items = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
-movies = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
-for movie in moviesr:
-    title = items.loc[items['movieId']==movie,'SPARQLTitle']
-    nationality = movies.loc[movies['name']==title,'country'].values.tolist()
-    print(nationality)
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique()
-list_users = pivot.index.unique()"""
+list_users = pivot.index.unique()
 
-"""
 i=0
 nbrel=0
 for i in range(pivot.shape[0]):
@@ -192,16 +184,13 @@ np.savetxt("TargetTr.txt",TargetTr.astype(int),fmt='%d')
 
 model = Sequential()
 model.add(Input(shape=InputTr.shape[1]))
-model.add(Dense(300, activation='relu'))
+model.add(Dense(200, activation='relu'))
 model.add(Dropout(rate=0.2))
-model.add(Dense(175, activation='relu'))
-model.add(Dropout(rate=0.2))
-model.add(Dense(75, activation='relu'))
-model.add(Dropout(rate=0.2))
+model.add(Dense(100, activation='relu'))
 model.add(Dense(InputTr.shape[1],activation='softmax'))
 model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
 model.summary()
-history = model.fit(InputTr,TargetTr,validation_data=(InputTe,TargetTe),epochs=200,batch_size=300)
+history = model.fit(InputTr,TargetTr,validation_data=(InputTe,TargetTe),epochs=80,batch_size=250)
 model.save("ml-100k")
 
 # list all data in history
@@ -229,15 +218,16 @@ print("test loss, test acc:", results)
 
 
 
-"""
-"""
+
+"""model = load_model("ml-100k")
+
 InputTr = np.loadtxt("InputTr.txt")
 TargetTr = np.loadtxt("TargetTr.txt")
 InputTe = np.loadtxt("InputTe.txt")
 TargetTe = np.loadtxt("TargetTe.txt")
-model = load_model("ml-100k")
-movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")"""
-"""
+
+movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
+
 relevanttotal = Relevant(pivot)
 testmovies = random.sample(relevanttotal,80)
 testusers = list()
@@ -250,9 +240,6 @@ while i <pivot.shape[0]:
 if(len(testusers)>30):
     testusers = random.sample(testusers,25)
 
-        
-"""
-"""
 randuser = random.randrange(1,InputTe.shape[0])
 testUser = InputTe[randuser,:]
 print(testUser.shape)
@@ -260,36 +247,45 @@ rev=ListRel(testUser)
 rev.append(TargetTe[randuser].astype(int))
 testUser = testUser.reshape(1,testUser.shape[0])
 results = model.predict(testUser)
-results = np.argsort(results.reshape(testUser.shape[1]))[::-1]"""
+results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
 """
 n=96
-i=1
-recalls = []
-precisions = []
 
-while(i<n):
- totalrec = 0
- totalprec = 0
- for j in testusers:
-    testUser = np.array(pivot.iloc[j,:],copy=True)
-    rev  = ListRelevant(pivot,pivot.shape[1],j)
-    testUser = testUser.reshape(1,testUser.shape[0])
-    results = model.predict(testUser)
-    results = np.argsort(results.reshape(testUser.shape[1]))[::-1]   
+totalprec = list()
+totalrec = list()
+for j in range(pivot.shape[0]):
+ recalls = list()
+ precisions = list()
+ recalls.append(j)
+ precisions.append(j)
+ i=1 
+ testUser = np.array(pivot.iloc[j,:],copy=True)
+ rev  = ListRelevant(pivot,pivot.shape[1],j)
+ testUser = testUser.reshape(1,testUser.shape[0])
+ results = model.predict(testUser)
+ results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
+ if(len(rev)!=0):
+  recalls.append(len(rev))
+  precisions.append(len(rev))   
+  while(i<n):   
     hr=0
     temp =results[:i]
     for k in range(len(temp)):
          if  temp[k] in rev:
           hr+=1
-    totalprec = totalprec + (hr)/i
-    totalrec = totalrec + (hr)/len(rev)
- i+=5
- precisions.append(totalprec/len(testusers))
- recalls.append(totalrec/len(testusers))
+    prec = (hr)/i
+    rec =  (hr)/len(rev)
+    precisions.append(prec)
+    recalls.append(rec)
+    i+=5 
+  totalprec.append(np.asarray(precisions))
+  totalrec.append(np.asarray(recalls))
+np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
+np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
 
-print(precisions)
-print("_______________")
-print(recalls)"""
+
+
+
 """
 usertable = np.array(pivot.iloc[0,:],copy=True)
 testUser = usertable.reshape(1,usertable.shape[0])
