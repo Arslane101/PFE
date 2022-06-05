@@ -289,7 +289,7 @@ while(i<n):
 print(precisions)
 print("_______________")
 print(recalls)"""
-usertable = np.array(pivot.iloc[int(453)-1,:],copy=True)
+usertable = np.array(pivot.iloc[0,:],copy=True)
 testUser = usertable.reshape(1,usertable.shape[0])
 results = model.predict(testUser)
 results = np.argsort(results.reshape(testUser.shape[1]))[::-1] 
@@ -297,9 +297,7 @@ n=96
 i=1
 recalls = []
 precisions = []
-rev = ListRelevant(pivot,pivot.shape[1],int(453)-1)
-print(results[:96])
-print(rev)
+rev = ListRelevant(pivot,pivot.shape[1],0)
 while(i<n):
  rec = 0
  prec = 0
@@ -315,3 +313,5 @@ while(i<n):
  recalls.append(rec)    
 print(recalls)
 print(precisions)
+print(usertable[:100])
+print(rev)

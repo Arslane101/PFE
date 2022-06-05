@@ -18,9 +18,8 @@ options = st.selectbox("Séléctionnez le numéro de l'utilisateur test"
 first = st.button('Valider')
 
 st.text("Si vous êtes un utilisateur existant :")
-number = st.number_input("Saisissez votr numéro d'utilisateur",1,943)
+number = st.number_input("Saisissez votre numéro d'utilisateur",1,943)
 usertable = np.array(pivot.iloc[int(number)-1,:],copy=True)
-st.dataframe(usertable)
 testUser = usertable.reshape(1,usertable.shape[0])
 results = model.predict(testUser)
 results = np.argsort(results.reshape(testUser.shape[1]))[::-1] 
@@ -33,12 +32,11 @@ i=1
 recalls = []
 precisions = []
 rev = ListRelevant(pivot,pivot.shape[1],int(number)-1)
-print(results[:96])
-print(rev)
 while(i<n):
  rec = 0
  prec = 0
  hr=0
+ temp = results[:i]
  for k in range(len(temp)):
     if  temp[k] in rev:
         hr+=1
@@ -47,10 +45,6 @@ while(i<n):
  i+=5
  precisions.append(prec)
  recalls.append(rec)    
-
-
-print(recalls)
 st.line_chart(data=recalls)
-print(precisions)
 st.line_chart(data=precisions)
 
