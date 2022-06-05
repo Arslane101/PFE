@@ -3,7 +3,27 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from keras.models import load_model
-from BêtaV1Tensorflow import ListRelevant,ListRel
+
+def ListRelevant(matrix,n_items,ind):
+    relevants = []
+    for i in range(n_items):
+        if(matrix.iloc[ind,i]==1):
+            relevants.append(i)
+    return relevants   
+def ListRel(array):
+    relevants = []
+    for i in range(len(array)):
+        if(array[i]==1):
+            relevants.append(i)
+    return relevants 
+def Relevant(matrix):
+    relevants = []
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            if(matrix.iloc[i,j]==1) and j not in relevants:
+              relevants.append(j)
+    return relevants   
+
 @st.cache(suppress_st_warning=True)
 def Prediction(number):
    usertable = np.array(pivot.iloc[int(number)-1,:],copy=True)
@@ -11,13 +31,6 @@ def Prediction(number):
    results = model.predict(testUser)
    results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
    return results
-@st.cache(suppress_st_warning=True)
-def PrintListMovies(numberec,results):
-    temp = results[:(int(numberec))]
-    movieslist = list()
-    for i in temp:
-        movieslist.append(movies[movies['movieId']==list_movieids[i]]['Title'])
-    return movieslist
 def PlotResults(results):
     n=96
     i=1
@@ -79,17 +92,19 @@ if(first):
       i+=5
       precisions.append(prec)
       recalls.append(rec)    
-    st.line_chart(data=recalls)
     st.line_chart(data=precisions)
+    st.line_chart(data=recalls)
 
 
 st.text("Si vous êtes un utilisateur existant :")
 number = st.number_input("Saisissez votre numéro d'utilisateur",1,943)
-second = st.button("Lancer la recommandation")
-if(second):
-    numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96)
-    results = Prediction(number)
-    execres = PrintListMovies(numberec,results)
-    st.text(execres)
+numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96)
+results = Prediction(number)
+temp = results[:(int(numberec))]
+movieslist = list()
+for i in temp:
+    movieslist.append(movies[movies['movieId']==list_movieids[i]]['Title'])
+st.text(movieslist)
+PlotResults(results)
 
 
