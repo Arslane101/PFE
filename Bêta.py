@@ -50,7 +50,7 @@ def ListRel(array):
 def GenRandomInputs(nb_inputs,nb_items):
     inputs = np.zeros((nb_inputs,nb_items))
     for i in range(nb_inputs):
-        nbratings = random.randint(20,80)
+        nbratings = random.randint(150,300)
         positions = random.sample(range(0,nb_items-1),nbratings)
         for j in positions:
             inputs[i,j]=1
@@ -74,7 +74,7 @@ count_countries = np.argsort(count_countries)[::-1]
 print(list_countries)
 print(count_countries)
 print(values_countries)
-inputs = GenRandomInputs(5,pivot.shape[1])
+inputs = GenRandomInputs(15,pivot.shape[1])
 print(len(inputs))
 print(inputs)
 np.savetxt("RandomUsers.txt",inputs.astype(int),fmt='%d')

@@ -1,4 +1,5 @@
 
+import itertools
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -23,7 +24,6 @@ def Relevant(matrix):
             if(matrix.iloc[i,j]==1) and j not in relevants:
               relevants.append(j)
     return relevants   
-@st.cache(suppress_st_warning=True)
 def WriteMovieList():
     number = st.session_state['select']
     num = st.session_state['numrec2']
@@ -53,8 +53,7 @@ def WriteMovieList():
     movieslist = list()
     for i in temp:
       movieslist.append(movies[movies['movieId']==list_movieids[i]]['Title'])
-    return precisions,recalls,movieslist
-@st.cache(suppress_st_warning=True)
+    return precisions,recalls,list(itertools.chain(*movieslist))
 def PredictionNewUser():
     number = st.session_state["slider1"]
     numberec = st.session_state["numrec"]
@@ -66,7 +65,7 @@ def PredictionNewUser():
     temp = results[:(int(numberec))]
     movieslist = list()
     for i in temp:
-     movieslist.append(movies[movies['movieId']==list_movieids[i]]['Title'])
+     movieslist.append(movies[movies['movieId']==list_movieids[i]]['Title'].unique().tolist())
     n=96
     i=1
     recalls = []
@@ -84,7 +83,7 @@ def PredictionNewUser():
       i+=5
       precisions.append(prec)
       recalls.append(rec)    
-    return precisions,recalls,movieslist
+    return precisions,recalls,list(itertools.chain(*movieslist))
 ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 randomusers = np.loadtxt("RandomUsers.txt")
@@ -92,7 +91,7 @@ model = load_model("ml-100k")
 list_movieids = pivot.columns.unique()
 movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
 st.set_page_config(
-    page_title="NCCF",
+    page_title="Comparaison de Systèmes de Recommandation",
     page_icon="👋",
 )
 
@@ -102,14 +101,16 @@ options = st.selectbox("Séléctionnez votre numéro d'utilisateur"
 ,['1','2','3','4','5'],key='slider1',on_change=PredictionNewUser)
 numberec2 = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec',on_change=PredictionNewUser)
 Results = PredictionNewUser()
-st.text(Results[2])
+for i in Results[2]:
+  st.text(i)
 st.line_chart(data=Results[0])
 st.line_chart(data=Results[1])
 st.text("Si vous êtes un utilisateur existant :")
 number = st.number_input("Saisissez votre numéro d'utilisateur",1,943,key='select',on_change=WriteMovieList)
 numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=WriteMovieList)
 Results = WriteMovieList()
-st.text(Results[2])
+for i in Results[2]:
+  st.text(i)
 st.line_chart(data=Results[0])
 st.line_chart(data=Results[1])
 

@@ -117,26 +117,19 @@ def BuildProfile(ratings,ind):
            if(movies.loc[i,genre]==1):
                profile[j]=1
    return profile
-def UserMostMoviesbyCountry(pivot,country):
+def AllMoviesbyCountry(country):
     items = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
     movies = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
     specificmovies = movies[movies['country'].isin(country)]['name'].unique()
     uniqueids = items[items['name'].isin(specificmovies)]['movieId'].unique()
-    maxmovies= len(set(uniqueids).intersection(relevant(pivot,pivot.shape[1],0)))  
-    maxuser = 0
-    maxusers = list()
-    i=1
-    for i in range(pivot.shape[0]):
-        relevant = ListRelevant(pivot,pivot.shape[1],i)
-        if(len(set(uniqueids).intersection(relevant(pivot,pivot.shape[1],i)))>maxmovies):
-            maxmovies = len(set(uniqueids).intersection(relevant(pivot,pivot.shape[1],i)))
-            maxuser = i
-    i=0
-    for i in range(pivot.shape[0]):
-        if(len(len(set(uniqueids).intersection(relevant(pivot,pivot.shape[1],i)))==maxmovies)):
-            maxusers.append(i)
-    return maxuser,maxusers
-
+    return uniqueids
+def MostRelevantMoviesbyContext(ratings,country):
+    uniqueids = AllMoviesbyCountry(country)
+    listmovies = list()
+    for i in range(ratings.shape[0]):
+        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1):
+            listmovies.append(ratings['movieId'][i])
+    return listmovies
 
 """Création des inputs et targets du RDN"""
 
@@ -187,11 +180,11 @@ model.add(Input(shape=InputTr.shape[1]))
 model.add(Dense(200, activation='relu'))
 model.add(Dropout(rate=0.2))
 model.add(Dense(100, activation='relu'))
+model.add(Dropout(rate=0.2))
 model.add(Dense(InputTr.shape[1],activation='softmax'))
 model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
 model.summary()
 history = model.fit(InputTr,TargetTr,validation_data=(InputTe,TargetTe),epochs=80,batch_size=250)
-model.save("ml-100k")
 
 # list all data in history
 print(history.history.keys())
