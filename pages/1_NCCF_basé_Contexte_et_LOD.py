@@ -1,9 +1,11 @@
 
+import calendar
 import itertools
 import numpy as np
 import pandas as pd
 import streamlit as st
 from keras.models import load_model
+import datetime as dt
 
 def ListRelevant(matrix,n_items,ind):
     relevants = []
@@ -59,9 +61,7 @@ def PredictionNewUser():
     numberec = st.session_state["numrec"]
     usertable = randomusers[int(number)-1,:]
     rev = ListSpecRel(usertable)
-    listcountries = list()
-    listcountries.append(country)
-    globalrev = MostRelevantMoviesbyContext(ratings,listcountries)
+    globalrev = MostRelevantMoviesbyContext(ratings)
     interesection = list(set(rev).intersection(globalrev))
     testUser = usertable.reshape(1,usertable.shape[0])
     results = model.predict(testUser)
@@ -94,14 +94,67 @@ def AllMoviesbyCountry(country):
     specificmovies = movies[movies['country'].isin(country)]['name'].unique()
     uniqueids = items[items['SPARQLTitle'].isin(specificmovies)]['movieId'].unique()
     return uniqueids
-def MostRelevantMoviesbyContext(ratings,country):
-    uniqueids = AllMoviesbyCountry(country)
+def MostRelevantMoviesbyContext(ratings):
+    currentdate = dt.datetime.now()
+    currentday = currentdate.strftime("%A")
+    weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+    weekend = ["Saturday","Sunday"]
     listmovies = list()
-    for i in range(ratings.shape[0]):
-        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1):
+    if(currentday in weekdays):
+      for i in range(ratings.shape[0]):
+        if(ratings["rating"][i]==1) and calendar.day_name[ratings["timestamp"][i].weekday()] in weekdays:
+            if(ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    else : 
+      for i in range(ratings.shape[0]):
+        if(ratings["rating"][i]==1 and calendar.day_name[ratings["timestamp"][i].weekday()] in weekend):
+            if(ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    return listmovies
+def RelevantContextMovies(ratings,country):
+    uniqueids = AllMoviesbyCountry(country)
+    currentdate = dt.now()
+    currentday = currentdate.strftime("%A")
+    weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+    weekend = ["Saturday","Sunday"]
+    listmovies = list()
+    if(currentday in weekdays):
+      for i in range(ratings.shape[0]):
+        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1) and calendar.day_name[ratings["timestamp"][i].weekday()] in weekdays:
+            listmovies.append(ratings['movieId'][i])
+    else : 
+      for i in range(ratings.shape[0]):
+        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1 and calendar.day_name[ratings["timestamp"][i].weekday()] in weekend):
             listmovies.append(ratings['movieId'][i])
     return listmovies
-
+def GetTrendsMovies(listmovies):
+    genrelist = open("ml-100k/genres.txt","r").readlines()
+    movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
+    trends = np.zeros(len(genrelist))
+    for i in range(len(genrelist)):
+        for id in listmovies:
+            temp = movies.loc[movies['movieId']==id]
+            val =temp.index
+            if(len(val)!=0):
+             if(temp[genrelist[i].strip()][val[0]]==1):
+                 trends[i]+=1
+    genreids = np.argsort(trends)[::-1]
+    sortedgenres = list()
+    for i in genreids:
+        sortedgenres.append(genrelist[i].strip())
+    print(trends) 
+    return sortedgenres
+def GenresSpecificMovie(id):
+    movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
+    moviegenre = list()
+    genrelist = open("ml-100k/genres.txt","r").readlines()
+    for i in range(len(genrelist)):
+        temp = movies.loc[movies['movieId']==id]
+        val =temp.index
+        if(len(val)!=0):
+            if(temp[genrelist[i].strip()][val[0]]==1):
+             moviegenre.append(genrelist[i].strip())
+    return moviegenre 
 ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 randomusers = np.loadtxt("RandomUsers.txt")

@@ -1,6 +1,7 @@
+import calendar
 from keras.engine.input_layer import Input
 import random
-from datetime import datetime,timedelta
+from datetime import date, datetime,timedelta
 import pandas as pd
 import numpy as np
 from keras.models import Sequential,load_model
@@ -85,6 +86,12 @@ def ListRel(array):
         if(array[i]==1):
             relevants.append(i)
     return relevants 
+def ListSpecRel(array):
+    relevants = []
+    for i in range(len(array)):
+        if(array[i]==1):
+            relevants.append(list_movies[i])
+    return relevants 
 def Relevant(matrix):
     relevants = []
     for i in range(matrix.shape[0]):
@@ -103,38 +110,62 @@ def GenInputTargetUser(pivot,n_items,ind):
         Target[i]=j
         i+=1 
     return Input,Target
-def BuildProfile(ratings,ind):
-   with open("ml-100k/genres.txt") as f:
-    genres = f.readlines()
-   movies = pd.read_csv("ml-100k/item.csv",delimiter=";")
-   size = len(genres)
-   profile = np.zeros(size)
-   userratings= ratings.loc[ratings['userId']==ind]
-   ratedmovies = userratings['movieId'].unique()
-   for i in ratedmovies:
-       for j in range(len(genres)):
-           genre = genres[j].strip()
-           if(movies.loc[i,genre]==1):
-               profile[j]=1
-   return profile
+def GetTrendsMovies(listmovies):
+    genrelist = open("ml-100k/genres.txt","r").readlines()
+    movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
+    trends = np.zeros(len(genrelist))
+    for i in range(len(genrelist)):
+        for id in listmovies:
+            temp = movies.loc[movies['movieId']==id]
+            val =temp.index
+            if(len(val)!=0):
+             if(temp[genrelist[i].strip()][val[0]]==1):
+                 trends[i]+=1
+    return trends
 def AllMoviesbyCountry(country):
     items = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
     movies = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
     specificmovies = movies[movies['country'].isin(country)]['name'].unique()
-    uniqueids = items[items['name'].isin(specificmovies)]['movieId'].unique()
+    uniqueids = items[items['SPARQLTitle'].isin(specificmovies)]['movieId'].unique()
     return uniqueids
-def MostRelevantMoviesbyContext(ratings,country):
-    uniqueids = AllMoviesbyCountry(country)
+def MostRelevantMoviesbyContext(ratings):
+    currentdate = datetime.now()
+    currentday = currentdate.strftime("%A")
+    weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+    weekend = ["Saturday","Sunday"]
     listmovies = list()
-    for i in range(ratings.shape[0]):
-        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1):
+    if(currentday in weekdays):
+      for i in range(ratings.shape[0]):
+        if(ratings["rating"][i]==1) and calendar.day_name[ratings["timestamp"][i].weekday()] in weekdays:
+            if(ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    else : 
+      for i in range(ratings.shape[0]):
+        if(ratings["rating"][i]==1 and calendar.day_name[ratings["timestamp"][i].weekday()] in weekend):
+            if(ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    return listmovies
+def RelevantContextMovies(ratings,country):
+    uniqueids = AllMoviesbyCountry(country)
+    currentdate = datetime.now()
+    currentday = currentdate.strftime("%A")
+    weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+    weekend = ["Saturday","Sunday"]
+    listmovies = list()
+    if(currentday in weekdays):
+      for i in range(ratings.shape[0]):
+        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1) and calendar.day_name[ratings["timestamp"][i].weekday()] in weekdays:
+            listmovies.append(ratings['movieId'][i])
+    else : 
+      for i in range(ratings.shape[0]):
+        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1 and calendar.day_name[ratings["timestamp"][i].weekday()] in weekend):
             listmovies.append(ratings['movieId'][i])
     return listmovies
+
 
 """Création des inputs et targets du RDN"""
 
 ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
-
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 
 n_users = pivot.index.unique().shape[0]
@@ -177,9 +208,7 @@ np.savetxt("TargetTr.txt",TargetTr.astype(int),fmt='%d')
 
 model = Sequential()
 model.add(Input(shape=InputTr.shape[1]))
-model.add(Dense(200, activation='relu'))
-model.add(Dropout(rate=0.2))
-model.add(Dense(100, activation='relu'))
+model.add(Dense(300, activation='relu'))
 model.add(Dropout(rate=0.2))
 model.add(Dense(InputTr.shape[1],activation='softmax'))
 model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
@@ -243,7 +272,7 @@ results = model.predict(testUser)
 results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
 """
 n=96
-
+mostrel = MostRelevantMoviesbyContext(ratings,["United States"])
 totalprec = list()
 totalrec = list()
 for j in range(pivot.shape[0]):
@@ -253,7 +282,8 @@ for j in range(pivot.shape[0]):
  precisions.append(j)
  i=1 
  testUser = np.array(pivot.iloc[j,:],copy=True)
- rev  = ListRelevant(pivot,pivot.shape[1],j)
+ rev  = ListSpecRel(testUser)
+ interesection  = list(set(rev).intersection(mostrel))
  testUser = testUser.reshape(1,testUser.shape[0])
  results = model.predict(testUser)
  results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
@@ -264,10 +294,10 @@ for j in range(pivot.shape[0]):
     hr=0
     temp =results[:i]
     for k in range(len(temp)):
-         if  temp[k] in rev:
+         if  list_movies[temp[k]] in interesection:
           hr+=1
     prec = (hr)/i
-    rec =  (hr)/len(rev)
+    rec =  (hr)/len(interesection)
     precisions.append(prec)
     recalls.append(rec)
     i+=5 
