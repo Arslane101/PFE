@@ -50,10 +50,10 @@ def ListRel(array):
 def GenRandomInputs(nb_inputs,nb_items):
     inputs = np.zeros((nb_inputs,nb_items))
     for i in range(nb_inputs):
-        nbratings = random.randint(150,300)
+        nbratings = random.randint(20,300)
         positions = random.sample(range(0,nb_items-1),nbratings)
         for j in positions:
-            inputs[i,j]=1
+            inputs[i,j]=random.randint(1,5)
     return inputs
 
 movies = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")

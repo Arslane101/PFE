@@ -148,15 +148,13 @@ def UserMostContextualMovies(pivot,listmovies):
         numberrel[i] = len(set(ListRelevant(pivot,pivot.shape[1],i)).intersection(listmovies))
     return np.argsort(numberrel)[::-1]
 def GetTimeDay(hour):
-    if hour>=8 and hour<12:
+    if hour>=8 and hour<=12:
         return "Morning"
-    elif hour>=12 and hour <=13:
-        return "Noon"
-    elif hour>13 and hour<=16:
-        return "Afternooon"
-    elif hour>=17 and hour<=19:
+    elif hour>=13 and hour <=17:
+        return "Afternoon"
+    elif hour>=18 and hour<=21:
         return "Evening"
-    elif hour>=20 and hour<=00:
+    elif hour>=22 and hour<=2:
         return "Night"
     else: return "Late Night"
     
@@ -181,7 +179,8 @@ movieslist = list()
 n=96
 k=0
 relevantmovies = MostRelevantMoviesbyContext(ratings)
-testUserid= UserMostContextualMovies(pivot,relevantmovies)[0]
+userids = UserMostContextualMovies(pivot,relevantmovies)
+testUserid= userids[0]
 testUser = np.array(pivot.iloc[testUserid,:],copy=True)
 totalprec = list()
 totalrec = list()
