@@ -10,13 +10,15 @@ from SPARQLWrapper import SPARQLWrapper, CSV
  PREFIX dbpedia:<http://dbpedia.org/>
  PREFIX dbo:<http://dbpedia.org/ontology/>
  PREFIX dbp:<http://dbpedia.org/property/>
-select ?name ?gross ?country ?director
+select ?name ?gross ?country ?director ?starring ?subject
 where {
 values ?input {<http://dbpedia.org/resource/Pulp_Fiction>}
 ?input dbp:name ?name.
 ?input dbp:gross ?gross.
  ?input dbp:country ?country.
  ?input dbp:director ?director
+ ?input dbp:starring ?starring
+ ?input dbp:subject ?subject
  }"""
 def ChargerDataset(path,th):
     ratings = pd.read_csv(path,parse_dates=['timestamp'])
