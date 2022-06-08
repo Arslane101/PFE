@@ -1,5 +1,7 @@
 from cgi import test
 import imp
+from cv2 import sort
+from matplotlib.pyplot import axis
 import pandas as pd
 import matplotlib as plt
 import numpy as np
@@ -17,8 +19,11 @@ testUser = ratings[ratings["userId"]==1]
 usermovies = movies[movies['movieId'].isin(testUser["movieId"].tolist())]
 usermovies = usermovies.reset_index(drop=True)
 usermovies  =usermovies.drop('movieId',1)
-print(pd.DataFrame(testUser['rating']))
-transpose = usermovies.transpose()
-print(transpose.head())
-userprofile = transpose.dot(pd.DataFrame(testUser['rating']))
-print(userprofile)
+userprofile = usermovies.transpose().dot(testUser['rating'].reset_index(drop=True))
+genreTable = movies.set_index(movies['movieId'])
+genreTable = genreTable.drop('movieId', 1)
+print(genreTable.shape)
+print(userprofile.head())
+recommendation = ((genreTable*userprofile).sum(axis=1))/(userprofile.sum())
+sorted = recommendation.sort_values(ascending=False)
+print(sorted.head())
