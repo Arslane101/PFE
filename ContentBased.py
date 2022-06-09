@@ -1,6 +1,6 @@
 
+from cgi import test
 import random
-from re import I
 import numpy as np
 import pandas as pd
 
@@ -24,15 +24,16 @@ def ContentBasedNoLOD(userId):
     movies = pd.read_csv("Content-based/movies.csv",delimiter=";")
     moviecopy = pd.read_csv("Content-based/filmsenrichis.csv",delimiter=";")
     testUser = ratings[ratings["userId"]==userId]
+    testUser =testUser.sort_values(by=['movieId'])
     usermovies = movies[movies['movieId'].isin(testUser["movieId"].tolist())]
     usermovies = usermovies.reset_index(drop=True)
-    usermovies  =usermovies.drop('movieId',1)
     userprofile = usermovies.transpose().dot(testUser['rating'].reset_index(drop=True))
     genreTable = movies.set_index(movies['movieId'])
     genreTable = genreTable.drop('movieId', 1)
     recommendation = ((genreTable*userprofile).sum(axis=1))/(userprofile.sum())
     sorted = recommendation.sort_values(ascending=False)
-    listmovies = moviecopy.loc[moviecopy['movieId'].isin(sorted.head(20).keys())]
+    print(sorted)
+    listmovies = moviecopy.loc[moviecopy['movieId'].isin(sorted.head(96).keys())]
     return listmovies
 def ContentBasedLOD(userId):
     movies = pd.read_csv("Content-based/moviesgenrescountries.csv",delimiter=";")
@@ -49,8 +50,10 @@ def ContentBasedLOD(userId):
 ratings = pd.read_csv("Content-based/specificratings.csv",delimiter=";",parse_dates=["timestamp"])
 moviecopy = pd.read_csv("Content-based/filmsenrichis.csv",delimiter=";")
 ratings = ratings.drop('timestamp',1)
-print()
-
+rev = ListRelevant(681,4)
+rev.sort()
+print(rev)
+ContentBasedNoLOD(681)
 """
 n=96
 totalprec = list()
