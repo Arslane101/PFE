@@ -1,5 +1,6 @@
 
 import random
+from re import I
 import numpy as np
 import pandas as pd
 
@@ -44,39 +45,41 @@ def ContentBasedLOD(userId):
     genreTable = genreTable.drop('movieId', 1)
     recommendation = ((genreTable*userprofile).sum(axis=1))/(userprofile.sum())
     sorted = recommendation.sort_values(ascending=False)
-    listmovies = moviecopy.loc[moviecopy['movieId'].isin(sorted.head(96).keys())]
-    return listmovies
+    return sorted.head(96).keys()
 ratings = pd.read_csv("Content-based/specificratings.csv",delimiter=";",parse_dates=["timestamp"])
 moviecopy = pd.read_csv("Content-based/filmsenrichis.csv",delimiter=";")
 ratings = ratings.drop('timestamp',1)
+print()
+
+"""
 n=96
 totalprec = list()
 totalrec = list()
-list_users = random.sample(ratings['userId'].unique().tolist(),20)
-j=0
-for j in range(len(list_users)) :
- rev = ListRelevant(list_users[j],3)
- hr=0
- recalls = list()
- precisions = list()
- recalls.append(list_users[j])
- precisions.append(list_users[j])
- recommended = ContentBasedLOD(list_users[j])
- recommended = recommended.reset_index(drop=True)
- if(len(rev)!=0):
+list_users = ratings['userId'].unique().tolist()
+for j in list_users :
+ rev = ListRelevant(j,3)
+ print(j)
+ if(len(rev)>15):
+  recalls = list()
+  precisions = list()
+  recalls.append(j)
+  precisions.append(j)
+  recommended = ContentBasedLOD(j)
   recalls.append(len(rev))
-  precisions.append(len(rev)) 
-  temp= recommended.head(10)
-  for k in range(temp.shape[0]):
-     if(temp['movieId'][k] in rev):
+  precisions.append(len(rev))
+  i=10
+  while(i<50): 
+   hr=0
+   temp= recommended[:i]
+   for k in range(len(temp)):
+     if(temp[k] in rev):
         hr+=1
-  prec = (hr)/10
-  rec =  (hr)/len(rev)
-  precisions.append(prec)
-  recalls.append(rec)
-  j+=1
-  print(j)
- totalprec.append(np.asarray(precisions))
- totalrec.append(np.asarray(recalls))
+   prec = (hr)/i
+   rec =  (hr)/len(rev)
+   precisions.append(prec)
+   recalls.append(rec)
+   i+=10
+  totalprec.append(np.asarray(precisions))
+  totalrec.append(np.asarray(recalls))
 np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
-np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
+np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')"""
