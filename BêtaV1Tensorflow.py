@@ -1,4 +1,6 @@
 import calendar
+from copy import copy
+from math import nan
 from keras.engine.input_layer import Input
 import random
 from datetime import date, datetime,timedelta
@@ -161,7 +163,46 @@ def RelevantContextMovies(ratings,country):
         if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1 and calendar.day_name[ratings["timestamp"][i].weekday()] in weekend):
             listmovies.append(ratings['movieId'][i])
     return listmovies
-
+def MostSuccesfulMovies():
+    movie = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
+    filmsenrichis = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
+    succesfulltitles = list()
+    succesfullids = list()
+    for i in range(movie.shape[0]):
+       if(movie['gross'][i] != nan and movie['budget'][i] != nan):
+        if(movie['gross'][i] > 2*movie['budget'][i]):
+            if(movie['name'][i] not in succesfulltitles):
+                succesfulltitles.append(movie['name'][i])
+    for i in range(filmsenrichis.shape[0]):
+        if(filmsenrichis['SPARQLTitle'][i] in succesfulltitles):
+            succesfullids.append(filmsenrichis['movieId'][i])
+    return succesfullids
+def ColdStartUsers():
+    coldstart = list()
+    list_users = pivot.index.unique().tolist()
+    for i in range(pivot.shape[0]):
+        if(len(ListRelevant(pivot,pivot.shape[1],i))<20):
+            coldstart.append(list_users[i])
+    return coldstart
+def CorrespondingMovieIds(rev,list_movies):
+    movieids = list()
+    for i in range(len(rev)):
+        movieids.append(list_movies[rev[i]])
+    return movieids
+def ModifyUser():
+    coldusers = ColdStartUsers()
+    success = MostSuccesfulMovies()
+    for i in range(pivot.shape[0]):
+        if(i+1 in coldusers):
+            rev = ListRelevant(pivot,pivot.shape[1],i)
+            print(rev)
+            newmovies = random.sample(success,20-len(rev))
+            while(len(set(CorrespondingMovieIds(rev,list_movies)).intersection(newmovies))>0):
+                newmovies = random.sample(success,20-len(rev))
+            for j in newmovies:
+                pivot.iloc[i,list_movies.index(j)]=1 
+            print(ListRelevant(pivot,pivot.shape[1],i))
+             
 
 """Création des inputs et targets du RDN"""
 
@@ -170,9 +211,10 @@ pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating'
 
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
-list_movies = pivot.columns.unique()
+list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique()
-
+ModifyUser()
+"""
 i=0
 nbrel=0
 for i in range(pivot.shape[0]):
@@ -237,7 +279,7 @@ plt.show()
 print("Evaluate on test data")
 results = model.evaluate(InputTe, TargetTe, batch_size=128)
 print("test loss, test acc:", results)
-
+"""
 
 
 
@@ -270,9 +312,8 @@ rev.append(TargetTe[randuser].astype(int))
 testUser = testUser.reshape(1,testUser.shape[0])
 results = model.predict(testUser)
 results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
-"""
+
 n=96
-mostrel = MostRelevantMoviesbyContext(ratings,["United States"])
 totalprec = list()
 totalrec = list()
 for j in range(pivot.shape[0]):
@@ -283,7 +324,6 @@ for j in range(pivot.shape[0]):
  i=1 
  testUser = np.array(pivot.iloc[j,:],copy=True)
  rev  = ListSpecRel(testUser)
- interesection  = list(set(rev).intersection(mostrel))
  testUser = testUser.reshape(1,testUser.shape[0])
  results = model.predict(testUser)
  results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
@@ -294,10 +334,10 @@ for j in range(pivot.shape[0]):
     hr=0
     temp =results[:i]
     for k in range(len(temp)):
-         if  list_movies[temp[k]] in interesection:
+         if  list_movies[temp[k]] in rev:
           hr+=1
     prec = (hr)/i
-    rec =  (hr)/len(interesection)
+    rec =  (hr)/len(rev)
     precisions.append(prec)
     recalls.append(rec)
     i+=5 
@@ -305,7 +345,7 @@ for j in range(pivot.shape[0]):
   totalrec.append(np.asarray(recalls))
 np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
 np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
-
+"""
 
 
 
