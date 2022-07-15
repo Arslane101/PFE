@@ -1,6 +1,8 @@
 import calendar
-from copy import copy
+import json
+import pickle as pk
 from math import nan
+from re import I
 from keras.engine.input_layer import Input
 import random
 from datetime import date, datetime,timedelta
@@ -12,7 +14,7 @@ from keras.optimizers import Adam
 from sklearn.metrics import jaccard_score
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from torch import double
+from yaml import load
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
     
 def ChargerDataset(path,th):
@@ -195,14 +197,113 @@ def ModifyUser():
     for i in range(pivot.shape[0]):
         if(i+1 in coldusers):
             rev = ListRelevant(pivot,pivot.shape[1],i)
-            print(rev)
             newmovies = random.sample(success,20-len(rev))
             while(len(set(CorrespondingMovieIds(rev,list_movies)).intersection(newmovies))>0):
                 newmovies = random.sample(success,20-len(rev))
             for j in newmovies:
                 pivot.iloc[i,list_movies.index(j)]=1 
-            print(ListRelevant(pivot,pivot.shape[1],i))
-             
+def Commons(subset,subsets):
+    count = 0
+    for i in range(len(subsets)):
+        if(len(set(subset).intersection(subsets[i]))!=0):
+            count+=1
+    return count
+def RandomSubsets(n_items,nb):
+    subsets = list()
+    subset = list(range(0,n_items,1))
+    for i in range(nb):
+        sub = random.sample(subset,int(n_items/nb))
+        if(len(subset) != int(n_items/nb)):
+            subset = list(set(subset)-set(sub))
+        subsets.append(sub)
+    return subsets
+def where(arr,nb):
+    for i in range(arr.shape[0]):
+        if(arr[i]==nb):
+            return i
+def EnsembleSamplesTraining(InputTr,InputTe,TargetTr,TargetTe):
+    itemslist = np.loadtxt("Tests.txt")
+    for i in range(itemslist.shape[0]):
+        itembis = itemslist[i,:]
+        count = 0
+        for j in range(len(TargetTr)):
+            if(TargetTr[j] in itembis):
+                count+=1
+        InputTrain = np.zeros((count,n_items))
+        TargetTrain = np.zeros((count))
+        k=0
+        j=0       
+        while j<len(InputTr) or k<count:
+            if(TargetTr[j] in itembis):
+                InputTrain[k]=InputTr[j,:]
+                TargetTrain[k]=where(itembis,TargetTr[j])
+                k+=1
+            j+=1
+        count = 0
+        for j in range(len(TargetTe)):
+            if(TargetTe[j] in itembis):
+                count+=1
+        InputTest = np.zeros((count,n_items))
+        TargetTest = np.zeros((count))
+        j=0 
+        k=0
+        count = 0
+        while j<len(InputTe) or k<count:
+            if(TargetTe[j] in itembis):
+                InputTest[k]=InputTe[j,:]
+                TargetTest[k]= where(itembis,TargetTe[j])
+                k+=1
+            j+=1
+        print(itembis.shape[0])
+        model = Sequential()
+        model.add(Input(shape=InputTrain.shape[1]))
+        model.add(Dense(100, activation='relu'))
+        model.add(Dropout(rate=0.2))
+        model.add(Dense(itembis.shape[0],activation='softmax'))
+        model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
+        model.summary()
+        history = model.fit(InputTrain,TargetTrain,validation_data=(InputTest,TargetTest),epochs=80,batch_size=150)
+        model.save(format(i))
+        # list all data in history
+        print(history.history.keys())
+        # summarize history for accuracy
+        plt.plot(history.history['accuracy']) 
+        plt.plot(history.history['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train','test'], loc='upper left')
+        plt.show()
+        # summarize history for loss
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train','test'], loc='upper left')
+        plt.show()
+        print("Evaluate on test data")
+        results = model.evaluate(InputTest, TargetTest, batch_size=128)
+        print("test loss, test acc:", results)
+    return itemslist
+def EnsembleSamplesTesting(nb):
+    itemslist = np.loadtxt("Tests.txt")
+    itemlist = np.concatenate(itemslist)
+    values = list()
+    for i in range(itemslist.shape[0]):
+        model = load_model(str(i))
+        testUser = np.array(pivot.iloc[nb,:],copy=True)
+        testUser = testUser.reshape(1,testUser.shape[0])
+        results = model.predict(testUser)
+        values.append(results)
+    results = np.concatenate(np.asarray(values))
+    results = np.argsort(results.reshape(itemlist.shape[0]))[::-1] 
+    for i in range(itemlist.shape[0]):
+        results= np.where(results==results[i],itemlist[results[i]],results)
+    return results
+        
+               
+            
 
 """Création des inputs et targets du RDN"""
 
@@ -213,7 +314,6 @@ n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique()
-ModifyUser()
 """
 i=0
 nbrel=0
@@ -242,8 +342,13 @@ for i in range(len(test)):
     InputTe[i]=InputA[test[i]-1,:]
     TargetTe[i]=Target[test[i]-1]
 
+"""
+InputTr = np.loadtxt("InputTr.txt")
+TargetTr = np.loadtxt("TargetTr.txt")
+InputTe = np.loadtxt("InputTe.txt")
+TargetTe = np.loadtxt("TargetTe.txt")
 
-np.savetxt("InputTe.txt",InputTe.astype(int),fmt='%d')
+"""np.savetxt("InputTe.txt",InputTe.astype(int),fmt='%d')
 np.savetxt("TargetTe.txt",TargetTe.astype(int),fmt='%d')
 np.savetxt("InputTr.txt",InputTr.astype(int),fmt='%d')
 np.savetxt("TargetTr.txt",TargetTr.astype(int),fmt='%d')
@@ -279,16 +384,13 @@ plt.show()
 print("Evaluate on test data")
 results = model.evaluate(InputTe, TargetTe, batch_size=128)
 print("test loss, test acc:", results)
-"""
 
 
 
-"""model = load_model("ml-100k")
+model = load_model("ml-100k")
 
-InputTr = np.loadtxt("InputTr.txt")
-TargetTr = np.loadtxt("TargetTr.txt")
-InputTe = np.loadtxt("InputTe.txt")
-TargetTe = np.loadtxt("TargetTe.txt")
+
+
 
 movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
 
@@ -298,11 +400,11 @@ testusers = list()
 i=0
 while i <pivot.shape[0]:
     relevants = ListRelevant(pivot,pivot.shape[1],i)
-    if(len(relevants)>40 and len(relevants)<100):
+    if(len(set(relevants).intersection(testmovies))>0):
         testusers.append(i)
     i+=1
 if(len(testusers)>30):
-    testusers = random.sample(testusers,25)
+    testusers = random.sample(testusers,40)
 
 randuser = random.randrange(1,InputTe.shape[0])
 testUser = InputTe[randuser,:]
@@ -312,7 +414,7 @@ rev.append(TargetTe[randuser].astype(int))
 testUser = testUser.reshape(1,testUser.shape[0])
 results = model.predict(testUser)
 results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
-
+"""
 n=96
 totalprec = list()
 totalrec = list()
@@ -325,8 +427,7 @@ for j in range(pivot.shape[0]):
  testUser = np.array(pivot.iloc[j,:],copy=True)
  rev  = ListSpecRel(testUser)
  testUser = testUser.reshape(1,testUser.shape[0])
- results = model.predict(testUser)
- results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
+ results = EnsembleSamplesTesting(j)
  if(len(rev)!=0):
   recalls.append(len(rev))
   precisions.append(len(rev))   
@@ -334,19 +435,17 @@ for j in range(pivot.shape[0]):
     hr=0
     temp =results[:i]
     for k in range(len(temp)):
-         if  list_movies[temp[k]] in rev:
+         if  list_movies[int(temp[k])] in rev:
           hr+=1
     prec = (hr)/i
     rec =  (hr)/len(rev)
     precisions.append(prec)
     recalls.append(rec)
-    i+=5 
+    i+=5
   totalprec.append(np.asarray(precisions))
   totalrec.append(np.asarray(recalls))
 np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
 np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
-"""
-
 
 
 """

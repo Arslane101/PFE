@@ -1,10 +1,10 @@
-from copy import copy
+from cmath import nan
 import random
 import pandas as pd
 import numpy as np
 import calendar
 import datetime as dt
-from keras.models import load_model
+import jellyfish as jf
 def ChargerDataset(path,th):
     ratings = pd.read_csv(path,delimiter=";",parse_dates=['timestamp'])
     """rand_movies = np.random.choice(ratings['movieId'].unique(), 
@@ -157,47 +157,3 @@ def GetTimeDay(hour):
     elif hour>=22 and hour<=2:
         return "Night"
     else: return "Late Night"
-    
-""""
-movie = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
-items = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
-user = UserMostMoviesbyCountry(pivot,['Spain'])
-movielist = ListRelevant(pivot,pivot.shape[1],user)
-for i in movielist:
-    #print(movie[movie['name']==items.loc[movielist[i],'SPARQLTitle']]) 
-    print(i)
-    print(items[items['movieId']==i]['SPARQLTitle'])  
-print(len(movielist))
-print(user)"""
-ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
-movie = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
-pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-model = load_model("ml-100k")
-list_movies = pivot.columns.unique()
-
-movieslist = list()
-n=96
-k=0
-relevantmovies = MostRelevantMoviesbyContext(ratings)
-userids = UserMostContextualMovies(pivot,relevantmovies)
-testUserid= userids[0]
-testUser = np.array(pivot.iloc[testUserid,:],copy=True)
-totalprec = list()
-totalrec = list()
-recalls = list()
-precisions = list()
-testUser = testUser.reshape(1,testUser.shape[0])
-results = model.predict(testUser)
-results=results.reshape(testUser.shape[1])
-copyresults = np.argsort(results)[::-1]
-lol = np.sort(results)[::-1]
-recommendedmovies = np.zeros(96)
-i=0
-while k<96:
-    if(list_movies[copyresults[i]] in relevantmovies):
-        recommendedmovies[k]=list_movies[copyresults[i]]
-        k+=1
-    i+=1
-for i in recommendedmovies:
-    movieslist.append(movie[movie['movieId']==i]['Title'].unique().tolist())
-print(movieslist)

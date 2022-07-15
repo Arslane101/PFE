@@ -1,0 +1,16 @@
+#Films sortis entre 1922 et 1998 
+SELECT DISTINCT ?title ?rating ?country ?genre ?budget ?gross WHERE {
+  ?item wdt:P31/wdt:P279* wd:Q11424.
+  ?item wdt:P1476 ?title.
+  ?item wdt:P495 [wdt:P1705 ?country].
+  ?item p:P444 ?ra.
+  ?ra ps:P444 ?rating.
+  ?ra pq:P459 wd:Q108403540.
+  ?item wdt:P577 ?pubdate;
+        wdt:P136 [wdt:P373 ?genre].
+  OPTIONAL {?item wdt:P2130 ?budget.
+  ?item p:P2142 ?st.
+  ?st ps:P2142 ?gross. 
+  ?st pq:P3005 wd:Q13780930.}
+  FILTER((?pubdate >= "1922-01-01T00:00:00Z"^^xsd:dateTime) && (?pubdate <= "1998-05-01T00:00:00Z"^^xsd:dateTime))
+}

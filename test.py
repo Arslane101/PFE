@@ -66,12 +66,15 @@ for i in range(len(values)):
       PREFIX dbpedia:<http://dbpedia.org/>
  PREFIX dbo:<http://dbpedia.org/ontology/>
  PREFIX dbp:<http://dbpedia.org/property/>
-select ?name ?release
+select ?name ?budget ?gross ?country ?director
 where {
 values ?input {<"""+values[i]+""">}
-?input dbo:name ?name.
+?input dbp:name ?name.
  OPTIONAL { 
- ?input dbp:released ?release. }
+ ?input dbo:budget ?budget.
+ ?input dbp:gross ?gross.
+ ?input dbp:country ?country.
+ ?input dbp:director ?director }
 }
 """)
     try:
