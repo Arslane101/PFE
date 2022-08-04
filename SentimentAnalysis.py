@@ -17,7 +17,7 @@ from sklearn.preprocessing import LabelEncoder
 
 def rmse(y_real, y_pred):
     return backend.sqrt(backend.mean(backend.square(y_pred - y_real), axis=-1))
-ratings = pd.read_csv("copy.csv",delimiter=";")   
+ratings = pd.read_csv("normalizedsentimentratings.csv",delimiter=";")   
 ratings = ratings[ratings["review_score"]==float(5000)]
 #Lowercase and Punctuation Recmoval
 ratings['review_content'] = ratings["review_content"].str.lower()
