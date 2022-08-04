@@ -17,21 +17,13 @@ import matplotlib.pyplot as plt
 from yaml import load
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
     
-def ChargerDataset(path,th):
-    ratings = pd.read_csv(path,delimiter=";",parse_dates=['timestamp'])
-    """rand_movies = np.random.choice(ratings['movieId'].unique(), 
-                                size=int(len(ratings['movieId'].unique())*per), 
-                                replace=False)
-
-    ratings = ratings.loc[ratings['movieId'].isin(rand_movies)]
-    ls = []
-    ls.extend(ratings.index[(ratings['rating']>=0)])"""
+def ChargerDataset(ratings,th):
     for i in range(ratings.shape[0]):
-        if ratings['rating'][i] >= float(th):
-            ratings.loc[i,'rating']=float(1)
-        else: ratings.loc[i,'rating']=float(0) 
-    ratings.to_csv("filteredratings.csv")
-    return ratings
+        if float(ratings['rating'][i]) == int(4000):
+            ratings.loc[i,'rating'] = int(0)
+        if float(ratings['rating'][i]) >= int(th):
+            ratings.loc[i,'rating']=int(1)
+        else: ratings.loc[i,'rating']=int(0) 
 def CheckValues():
     ratings = pd.read_csv("ml-100k/ratings.csv",delimiter=";")
     pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
@@ -273,14 +265,15 @@ def EnsembleSamplesTesting(nb):
 
 """Création des inputs et targets du RDN"""
 
-ratings = pd.read_csv("filteredratings.csv",delimiter=";",parse_dates=['timestamp'],infer_datetime_format=True)
+ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ChargerDataset(ratings,4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-
+print(pivot.head(5))
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique()
-"""
+
 i=0
 nbrel=0
 for i in range(pivot.shape[0]):
@@ -308,17 +301,18 @@ for i in range(len(test)):
     InputTe[i]=InputA[test[i]-1,:]
     TargetTe[i]=Target[test[i]-1]
 
+
 """
 InputTr = np.loadtxt("InputTr.txt")
 TargetTr = np.loadtxt("TargetTr.txt")
 InputTe = np.loadtxt("InputTe.txt")
-TargetTe = np.loadtxt("TargetTe.txt")
+TargetTe = np.loadtxt("TargetTe.txt")"""
 
 """np.savetxt("InputTe.txt",InputTe.astype(int),fmt='%d')
 np.savetxt("TargetTe.txt",TargetTe.astype(int),fmt='%d')
 np.savetxt("InputTr.txt",InputTr.astype(int),fmt='%d')
 np.savetxt("TargetTr.txt",TargetTr.astype(int),fmt='%d')
-
+"""
 model = Sequential()
 model.add(Input(shape=InputTr.shape[1]))
 model.add(Dense(300, activation='relu'))
@@ -351,7 +345,7 @@ print("Evaluate on test data")
 results = model.evaluate(InputTe, TargetTe, batch_size=128)
 print("test loss, test acc:", results)
 
-
+"""
 
 model = load_model("ml-100k")
 
@@ -380,7 +374,7 @@ rev.append(TargetTe[randuser].astype(int))
 testUser = testUser.reshape(1,testUser.shape[0])
 results = model.predict(testUser)
 results = np.argsort(results.reshape(testUser.shape[1]))[::-1]
-"""
+
 n=96
 totalprec = list()
 totalrec = list()
@@ -414,6 +408,7 @@ np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
 np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
 
 
+"""
 """
 usertable = np.array(pivot.iloc[0,:],copy=True)
 testUser = usertable.reshape(1,usertable.shape[0])
