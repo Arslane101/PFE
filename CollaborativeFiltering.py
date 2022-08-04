@@ -114,24 +114,6 @@ def GenInputTargetUser(pivot,n_items,ind):
         Target[i]=j
         i+=1 
     return Input,Target
-def GetTrendsMovies(listmovies):
-    genrelist = open("ml-100k/genres.txt","r").readlines()
-    movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
-    trends = np.zeros(len(genrelist))
-    for i in range(len(genrelist)):
-        for id in listmovies:
-            temp = movies.loc[movies['movieId']==id]
-            val =temp.index
-            if(len(val)!=0):
-             if(temp[genrelist[i].strip()][val[0]]==1):
-                 trends[i]+=1
-    return trends
-def AllMoviesbyCountry(country):
-    items = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
-    movies = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
-    specificmovies = movies[movies['country'].isin(country)]['name'].unique()
-    uniqueids = items[items['SPARQLTitle'].isin(specificmovies)]['movieId'].unique()
-    return uniqueids
 def MostRelevantMoviesbyContext(ratings):
     currentdate = datetime.now()
     currentday = currentdate.strftime("%A")
@@ -148,22 +130,6 @@ def MostRelevantMoviesbyContext(ratings):
         if(ratings["rating"][i]==1 and calendar.day_name[ratings["timestamp"][i].weekday()] in weekend):
             if(ratings['movieId'][i] not in listmovies):
                 listmovies.append(ratings['movieId'][i])
-    return listmovies
-def RelevantContextMovies(ratings,country):
-    uniqueids = AllMoviesbyCountry(country)
-    currentdate = datetime.now()
-    currentday = currentdate.strftime("%A")
-    weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
-    weekend = ["Saturday","Sunday"]
-    listmovies = list()
-    if(currentday in weekdays):
-      for i in range(ratings.shape[0]):
-        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1) and calendar.day_name[ratings["timestamp"][i].weekday()] in weekdays:
-            listmovies.append(ratings['movieId'][i])
-    else : 
-      for i in range(ratings.shape[0]):
-        if(ratings['movieId'][i] in uniqueids and ratings["rating"][i]==1 and calendar.day_name[ratings["timestamp"][i].weekday()] in weekend):
-            listmovies.append(ratings['movieId'][i])
     return listmovies
 def MostSuccesfulMovies():
     movie = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
@@ -307,7 +273,7 @@ def EnsembleSamplesTesting(nb):
 
 """Création des inputs et targets du RDN"""
 
-ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
+ratings = pd.read_csv("filteredratings.csv",delimiter=";",parse_dates=['timestamp'],infer_datetime_format=True)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 
 n_users = pivot.index.unique().shape[0]
