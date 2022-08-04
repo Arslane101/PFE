@@ -20,27 +20,28 @@ def convert_to_float(frac_str):
         else:
             sign_mult = 1
         return float(leading) + sign_mult * (float(num) / float(denom))
-ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ratings = pd.read_csv("reviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
 """movies =  pd.read_csv("rotten_tomatoes_movies.csv",delimiter=",")
 ratings = ratings.drop(['top_critic','publisher_name','review_type'],axis=1)
 rand_movies = np.random.choice(ratings['rotten_tomatoes_link'].unique(), 
                                 size=8000, 
                                 replace=False)
 
-ratings = ratings.loc[ratings['rotten_tomatoes_link'].isin(rand_movies)]
+recommenderratings = ratings.loc[ratings['rotten_tomatoes_link'].isin(rand_movies)]
+sentimentratings = ratings.loc[~ratings['rotten_tomatoes_link'].isin(rand_movies)]
 movies = movies.loc[movies['rotten_tomatoes_link'].isin(rand_movies)] 
-ratings.to_csv("reviews.csv")
-movies.to_csv("movies.csv")"""
-
+recommenderratings.to_csv("reviews.csv")
+movies.to_csv("movies.csv")
+sentimentratings.to_csv("sentimentratings.csv")"""
+ratings = ratings.fillna(4000)
 val = ['A','B','C','D','F','A+','A-','B+','B-','C+','C-','D+','D-','F+','F-']
-"""for i in range(ratings.shape[0]):
-    if(str(ratings.loc[i,'review_score']) not in val):
+for i in range(ratings.shape[0]):
+    if str(ratings.loc[i,'review_score']) not in val and ratings.loc[i,'review_score']!= 4000:
      print(ratings.loc[i,'review_score'])
      value = convert_to_float(ratings.loc[i,'review_score'])
      fraction = fr.Fraction(str(value))
      ratings.loc[i,'review_score'] = int(fraction.numerator*(4/fraction.denominator))+1
      print(ratings.loc[i,'review_score'])
-ratings.to_csv("normalizedreviews.csv")"""
 def ChargerDataset(ratings,th):
     for i in range(ratings.shape[0]):
      if not  any ( x in val for x in str(ratings.loc[i,'review_score'])):
@@ -87,6 +88,7 @@ for i in range(ratings.shape[0]):
             ratings.loc[i,'review_score']=int(1.25)
         else: ratings.loc[i,'review_score']=int(1)
 ratings.to_csv("normalizedreviews.csv")
+
 """
 ChargerDataset(ratings,4)
 ratings.to_csv("filteredratings.csv")
