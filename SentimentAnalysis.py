@@ -1,74 +1,163 @@
-from matplotlib import pyplot
-import pandas as pd
-import nltk
-from nltk.corpus import stopwords
-import gensim.downloader as api
 import numpy as np
-from keras.utils import np_utils
-from keras.models import Sequential
-from keras.preprocessing.text import Tokenizer
-from keras_preprocessing.sequence import pad_sequences
-from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
-from keras.layers import Dense, Flatten, LSTM, Conv1D, MaxPooling1D, Dropout, Activation, Embedding, Bidirectional, CuDNNLSTM, GRU, BatchNormalization, SimpleRNN
-from keras import backend
+import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+import tensorflow_hub as hub
+
+import tensorflow as tf
+import bert
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import re
+import nltk.corpus
+from keras.layers import Input,Dropout,Dense,Reshape,Conv1D,Bidirectional,LSTM,MaxPooling1D,Flatten,Concatenate
+from keras import Model
+from keras.models import Sequential
+from keras.regularizers import L2
+from sklearn.preprocessing import LabelBinarizer
+from transformers.models.distilbert.tokenization_distilbert import DistilBertTokenizer
+from transformers.models.distilbert.modeling_distilbert import DistilBertModel
+from keras.utils import plot_model
+# Use stopwords list from nltk
+lst_stopwords = nltk.corpus.stopwords.words("english")
+def utils_preprocess_text(text, flg_stemm=False, flg_lemm=True, lst_stopwords=None):
+    # Clean (convert to lowercase and remove punctuations and characters and then strip)
+    # The function is not optimized for speed but split into various steps for pedagogical purpose
+    
+    text = str(text).lower()
+    text = text.strip()
+    text = re.sub(r'[^\w\s]', '', text)
+
+    # Tokenize (convert from string to list)
+    lst_text = text.split()
+    # remove Stopwords
+    if lst_stopwords is not None:
+        lst_text = [word for word in lst_text if word not in lst_stopwords]
+
+    # Stemming (remove -ing, -ly, ...)
+    if flg_stemm == True:
+        ps = nltk.stem.porter.PorterStemmer()
+        lst_text = [ps.stem(word) for word in lst_text]
+
+    # Lemmatisation (convert the word into root word)
+    if flg_lemm == True:
+        lem = nltk.stem.wordnet.WordNetLemmatizer()
+        lst_text = [lem.lemmatize(word) for word in lst_text]
+
+    # back to string from list
+    text = " ".join(lst_text)
+    return text
+def bert_encoding(texts, tokenizer, max_len=512):
+    '''
+    Function to encode text into tokens, masks, and segment_ids for BERT embedding layer input.
+    
+    :param: texts - the texts to tokenize
+    :param: tokenizer - the BERT tokenizer that will be used to tokenize the texts
+    :param: max_len - the maximum length of an input sequence (the sequence of tokens to be embedded)
+    
+    :output: all_tokens - the texts turned into tokens and padded for match length, returned as np.array
+    :output: all_masks - masks for each text denoted sequence length and pad length, returned as np.array
+    :output: all_segments - segment_ids for each text, all blank, returned as np.array
+    '''
+    all_tokens = [] # initiated list for tokens
+    all_masks = [] # initiated list for masks
+    all_segments = [] # initiated list for segment_ids
+    
+    # Iterate through all texts
+    for text in texts:
+        
+        # Tokenize text
+        text = tokenizer.tokenize(text)
+        
+        # Make room for the CLS and SEP tokens
+        text = text[:max_len-2]
+        
+        # Create the input sequence beginning with [CLS] and ending with [SEP]
+        input_sequence = ["[CLS]"] + text + ["[SEP]"]
+        
+        # Determine how much padding is required (max_length - length of the input sequence)
+        pad_len = max_len - len(input_sequence)
+        
+        # Create token ids, used by BERT
+        tokens = tokenizer.convert_tokens_to_ids(input_sequence)
+        
+        # Pad the tokens by 0's for the pad length determined above
+        tokens += [0] * pad_len
+        
+        # Create the masks for the sequence, with the 1 for each token id and 0 for all padding
+        pad_masks = [1] * len(input_sequence) + [0] * pad_len
+        
+        # All empty segment_ids for the max length
+        segment_ids = [0] * max_len
+        
+        # Append all tokens, masks, and segment_ids to the initialized lists
+        all_tokens.append(tokens)
+        all_masks.append(pad_masks)
+        all_segments.append(segment_ids)
+        
+    return np.array(all_tokens), np.array(all_masks), np.array(all_segments)
+def build_model(bert_layer, max_len=512):
+    # INPUTS
+    input_word_ids = tf.keras.Input(shape=(max_len,), dtype=tf.int32, name='input_word_ids')
+    input_mask = tf.keras.Input(shape=(max_len,), dtype=tf.int32, name='input_mask')
+    input_type_ids = tf.keras.Input(shape=(max_len,), dtype=tf.int32, name='input_type_ids')
+    
+    # BERT EMBEDDING
+    _, sequence_output = bert_layer([input_word_ids,input_mask,input_type_ids])
+    clf_output = tf.keras.layers.Reshape((32,24))(sequence_output[:,0,:])
+    
+    
+    # CHANNEL 2 - LSTM
+    lstm = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(200,
+                                                             return_sequences=True))(clf_output)
+    flat = tf.keras.layers.Flatten()(lstm)
+
+    drop = tf.keras.layers.Dropout(0.2)(flat)
+    
+    dense_1 = tf.keras.layers.Dense(100,activation='relu')(drop)
+    output = tf.keras.layers.Dense(5,activation='softmax')(dense_1)
+
+    
+    return tf.keras.Model(inputs=[input_word_ids,input_mask,input_type_ids],outputs=[output])
 
 
-def rmse(y_real, y_pred):
-    return backend.sqrt(backend.mean(backend.square(y_pred - y_real), axis=-1))
+
+
 ratings = pd.read_csv("normalizedsentimentratings.csv",delimiter=";")   
-ratings = ratings[ratings["review_score"]==float(5000)]
-#Lowercase and Punctuation Recmoval
-ratings['review_content'] = ratings["review_content"].str.lower()
-ratings['review_content'] = ratings['review_content'].str.replace('[^\w\s]','')
-#Remove Stopwords
-stops = set(stopwords.words('english'))
-ratings['review_content'] = ratings['review_content'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stops)]))
-#Stemming
-stemmer = nltk.stem.SnowballStemmer("english")
-ratings['review_content'] = ratings['review_content'].apply(lambda x: [stemmer.stem(y) for y in x.split()])
-ratings['review_content'] = ratings['review_content'].str.join(" ")
-#Word2Vec
-vocabulary_size = 20000
-### Create sequence
-vocabulary_size = 20000
-tokenizer = Tokenizer(num_words= vocabulary_size)
-tokenizer.fit_on_texts(ratings['review_content'])
-sequences = tokenizer.texts_to_sequences(ratings['review_content'])
-data = pad_sequences(sequences, maxlen=50)
-encoder = LabelEncoder()
-encoder.fit(ratings['review_score'])
-encoded_Y = encoder.transform(ratings['review_score'])
-# convert integers to dummy variables (i.e. one hot encoded)
-dummy_y = np_utils.to_categorical(encoded_Y)
-X_train_embedding, X_test_embedding, y_train_embedding, y_test_embedding = train_test_split(data, dummy_y, test_size=0.2, stratify=dummy_y, random_state=42)
-w2vec_gensim  = api.load('glove-wiki-gigaword-100')
-vector_size = 100
-embedding_matrix_w2v = np.zeros((vocabulary_size ,vector_size))
-for word, index in tokenizer.word_index.items():
-    if index < vocabulary_size: # since index starts with zero 
-        if word in w2vec_gensim.wv.vocab:
-            embedding_matrix_w2v[index] = w2vec_gensim[word]
-        else:
-            embedding_matrix_w2v[index] = np.zeros(100)
-## create model
-epoch = 20
-batch = 128
-predicted_rating = 0.75
-real_rating = 1 - predicted_rating
+ratings = ratings[ratings["review_score"]!=int(4000)]
+ratings_1 = ratings[ratings["review_score"]==int(1)]
+ratings_1 = ratings_1.sample(2000)
+ratings_2 = ratings[ratings["review_score"]==int(2)]
+ratings_2 = ratings_2.sample(2000)
+ratings_3 = ratings[ratings["review_score"]==int(3)]
+ratings_3 = ratings_3.sample(2000)
+ratings_4 = ratings[ratings["review_score"]==int(4)]
+ratings_4 = ratings_4.sample(2000)
+ratings_5 = ratings[ratings["review_score"]==int(5)]
+ratings_5 = ratings_5.sample(2000)
+balanced_ratings = pd.concat([ratings_1,ratings_2,ratings_3,ratings_4,ratings_5])
+balanced_ratings = balanced_ratings.sample(frac=1)
+balanced_ratings = balanced_ratings.reset_index()
+balanced_ratings['review_content'] = balanced_ratings["review_content"].apply(lambda x:
+utils_preprocess_text(x,flg_stemm=False,flg_lemm=True,lst_stopwords=lst_stopwords))
+balanced_ratings['review_content']= balanced_ratings["review_content"].apply(
+lambda x: x.lower())
+balanced_ratings['review_score']=balanced_ratings["review_score"].apply(lambda x: x-1)
+targets = balanced_ratings["review_score"]
+BertTokenizer = bert.bert_tokenization.FullTokenizer
 
-model_w2v_rnn = Sequential()
-model_w2v_rnn.add(Embedding(vocabulary_size, 100, input_length=50, weights=[embedding_matrix_w2v], trainable=False))
-model_w2v_rnn.add(LSTM(100, dropout=0.2, recurrent_dropout=0.2))
-model_w2v_rnn.add(Dense(5, activation='softmax'))
-model_w2v_rnn.compile(loss='categorical_crossentropy', optimizer='adam', metrics=[rmse,'mae'])
-history_model_w2v_rnn = model_w2v_rnn.fit(X_train_embedding, y_train_embedding, validation_data=(X_test_embedding, y_test_embedding), epochs = epoch + 1, batch_size=batch)
+bert_layer = hub.KerasLayer("https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/1",trainable=False)
 
-pyplot.plot(history_model_w2v_rnn.history['rmse'], label='training rmse')
-pyplot.plot(history_model_w2v_rnn.history['val_rmse'], label='validation rmse')
-pyplot.plot(history_model_w2v_rnn.history['mae'], label='training mae')
-pyplot.plot(history_model_w2v_rnn.history['val_mae'], label='validation mae')
-pyplot.legend()
-pyplot.xlabel('EPOCH')
-pyplot.show()
+vocabulary_file = bert_layer.resolved_object.vocab_file.asset_path.numpy()
+to_lower_case = bert_layer.resolved_object.do_lower_case.numpy()
+
+# Load the tokenizer with the preloaded vocab file and lower case function
+tokenizer = BertTokenizer(vocabulary_file, to_lower_case)
+X_train,X_test,Y_train,Y_test = train_test_split(list(balanced_ratings['review_content']),targets,test_size=0.2,random_state=28)
+
+train_input = bert_encoding(X_train, tokenizer, max_len=100)
+test_input = bert_encoding(X_test, tokenizer, max_len=100)
+
+model = build_model(bert_layer,max_len=100)
+
+model.compile(optimizer='adam',loss='sparse_categorical_crossentropy',metrics=['accuracy'])
+print(model.summary())
+train_history = model.fit(train_input,Y_train,epochs=10,batch_size=128,validation_split=0.2)

@@ -20,7 +20,8 @@ def convert_to_float(frac_str):
         else:
             sign_mult = 1
         return float(leading) + sign_mult * (float(num) / float(denom))
-ratings = pd.read_csv("reviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ratings = pd.read_csv("rotten_tomatoes_critic_reviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+
 """movies =  pd.read_csv("rotten_tomatoes_movies.csv",delimiter=",")
 ratings = ratings.drop(['top_critic','publisher_name','review_type'],axis=1)
 rand_movies = np.random.choice(ratings['rotten_tomatoes_link'].unique(), 
@@ -33,7 +34,7 @@ movies = movies.loc[movies['rotten_tomatoes_link'].isin(rand_movies)]
 recommenderratings.to_csv("reviews.csv")
 movies.to_csv("movies.csv")
 sentimentratings.to_csv("sentimentratings.csv")"""
-ratings = ratings.fillna(4000)
+"""ratings = ratings.fillna(4000)
 val = ['A','B','C','D','F','A+','A-','B+','B-','C+','C-','D+','D-','F+','F-']
 for i in range(ratings.shape[0]):
     if str(ratings.loc[i,'review_score']) not in val and ratings.loc[i,'review_score']!= 4000:
@@ -89,10 +90,11 @@ for i in range(ratings.shape[0]):
         else: ratings.loc[i,'review_score']=int(1)
 ratings.to_csv("normalizedreviews.csv")
 
-"""
+
 ChargerDataset(ratings,4)
 ratings.to_csv("filteredratings.csv")
 pivot = ratings.pivot_table(index=['username'],columns=['movieId'],values='review_score',fill_value=0)
 print(pivot.columns.unique())
 print(pivot.index.unique())
-print(pivot)"""
+print(pivot)
+"""

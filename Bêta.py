@@ -56,25 +56,4 @@ def GenRandomInputs(nb_inputs,nb_items):
             inputs[i,j]=random.randint(1,5)
     return inputs
 
-movies = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
-ratings = pd.read_csv("ml-100k/filteredratings.csv",delimiter=";",parse_dates=['timestamp'])
-pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-list_countries = movies['country'].unique()
-count_countries = np.zeros(len(list_countries))
-j=0
-for country in list_countries:
-    count=0
-    for i in range(movies.shape[0]):
-        if(movies['country'][i]==country):
-            count+=1
-    count_countries[j]=count
-    j+=1
-values_countries = np.sort(count_countries)[::-1]
-count_countries = np.argsort(count_countries)[::-1]
-print(list_countries)
-print(count_countries)
-print(values_countries)
-inputs = GenRandomInputs(15,pivot.shape[1])
-print(len(inputs))
-print(inputs)
-np.savetxt("RandomUsers.txt",inputs.astype(int),fmt='%d')
+print("InputTe"+str(1)+".txt")
