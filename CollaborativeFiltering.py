@@ -275,7 +275,7 @@ if(len(testusers)>0):
     testusers = random.sample(testusers,25)
 """
 
-
+"""
 j=0
 n=96
 totalprec = list()
@@ -306,4 +306,4 @@ for j in range(pivot.shape[0]):
   totalprec.append(np.asarray(precisions))
   totalrec.append(np.asarray(recalls))
 np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
-np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
+np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')"""
