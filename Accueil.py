@@ -5,8 +5,13 @@ import pandas as pd
 import streamlit as st
 from keras.models import load_model
 
-from CollaborativeFiltering import ChargerDataset
-
+def ChargerDataset(ratings,th):
+    for i in range(ratings.shape[0]):
+        if pd.isnull(ratings['rating'][i]) :
+            ratings.loc[i,'rating'] = int(0)
+        if int(ratings['rating'][i]) >= int(th):
+            ratings.loc[i,'rating']= int(1)
+        else: ratings.loc[i,'rating']=int(0) 
 def ListRelevant(matrix,n_items,ind):
     relevants = []
     for i in range(n_items):
@@ -68,23 +73,33 @@ def WriteMovieList():
     for i in temp:
       movieslist.append(movies[movies['movieId']==list_movieids[i]]['Title'])
     return precisions,recalls,list(itertools.chain(*movieslist))
-
-ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'])
-ChargerDataset(ratings,4)
-movies = pd.read_csv("movies.csv",delimiter=";")
-pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-list_movieids = pivot.columns.unique()
 st.set_page_config(
-    page_title="Comparaison de Systèmes de Recommandation",
+    page_title="Comparaison des Différentes Approches",
     page_icon="👋",
+    layout="wide",
 )
-number = st.number_input("Saisissez votre numéro d'utilisateur",1,943,key='select',on_change=WriteMovieList)
-numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=WriteMovieList)
-Results = WriteMovieList()
-for i in Results[2]:
-  st.text(i)
-st.line_chart(data=Results[0])
-st.line_chart(data=Results[1])
-
+col1,col2 = st.columns(2)
+col1.subheader("Dataset des Evaluations")
+col2.subheader("Dataset des Items")
+stats = pd.DataFrame(columns=['Nombre Utilisateurs','Nombre Items','Nombre Evaluations','Nombre Commentaires'])
+with col1:
+    upload = st.file_uploader('Charger le dataset ',key='charger')
+    if(upload is not None):
+        path = upload.name
+        file = pd.read_csv(path,delimiter=";",infer_datetime_format=True)
+        stats.loc[len(stats.index)] = [len(file.userId.unique()),len(file.movieId.unique()),file['rating'].count(),file['review_content'].count()] 
+        st.write(stats)
+        write= st.dataframe(file)
+    button = st.button("Binariser")
+    if(button):
+        ChargerDataset(file,4)      
+        write = st.dataframe(file)
+with col2:
+    upload2 = st.file_uploader('Charger le dataset ',key='charger2')
+    if(upload2 is not None):
+        path = upload2.name
+        file = pd.read_csv(path,delimiter=";",infer_datetime_format=True)
+        st.write(file)
+    
 
 

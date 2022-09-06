@@ -22,10 +22,10 @@ from yaml import load
     
 def ChargerDataset(ratings,th):
     for i in range(ratings.shape[0]):
-        if math.isnan(ratings['rating'][i]) :
+        if pd.isnull(ratings['rating'][i]) :
             ratings.loc[i,'rating'] = int(0)
         if int(ratings['rating'][i]) >= int(th):
-            ratings.loc[i,'rating']=int(1)
+            ratings.loc[i,'rating']= int(1)
         else: ratings.loc[i,'rating']=int(0) 
 def CheckValues():
     ratings = pd.read_csv("ml-100k/ratings.csv",delimiter=";")
@@ -128,9 +128,9 @@ def MostRelevantMoviesbyContext(ratings):
     return listmovies
 def ColdStartUsers():
     coldstart = list()
-    list_users = pivot.index.unique().tolist()
+    list_users = ratings.userId.unique()
     for user in list_users:
-        sum = ratings[ratings["userId"]==user][ratings["rating"] == 4].shape[0] + ratings[ratings["userId"]==user][ratings["rating"] == 5].shape[0] 
+        sum = ratings[ratings["userId"]==user][ratings["rating"] == 4].shape[0] + ratings[ratings["userId"]==user][ratings["rating"] == 5].shape[0] + ratings[ratings["userId"]==user][pd.isnull(ratings["rating"])].shape[0] 
         if sum <20 :
             coldstart.append(user)
     return coldstart
@@ -142,11 +142,10 @@ def Commons(subset,subsets):
     return count
 def RandomSubsets(n_items,nb):
     subsets = list()
-    subset = list(range(0,n_items,1))
+    subset = list(range(0,n_items))
     for i in range(nb):
         sub = random.sample(subset,int(n_items/nb))
-        if(len(subset) != int(n_items/nb)):
-            subset = list(set(subset)-set(sub))
+        subset = list(set(subset)-set(sub))
         subsets.append(sub)
     return subsets
 def where(arr,nb):
@@ -154,21 +153,20 @@ def where(arr,nb):
         if(arr[i]==nb):
             return i
 def EnsembleSamplesTraining():
-  itemslist = np.loadtxt("Subsets.txt")
+  itemslist = np.loadtxt("Classic/Subsets.txt")
   i=0
-  nbrel=0
-  for i in range(pivot.shape[0]):
-    nbrel = nbrel + len(ListRelevant(pivot,n_items,i))
+  nbrel= ratings[ratings["rating"] == 1.0].shape[0]
   k=0
-  Input = np.zeros((nbrel,n_items))
-  Target = np.zeros((nbrel))
+  Input = np.zeros((nbrel,n_items),dtype=np.int8)
+  Target = np.zeros((nbrel),dtype=np.int16)
   for i in range(pivot.shape[0]):
     for j in  ListRelevant(pivot,n_items,i):
         Input[k] = np.array(pivot.iloc[i,:],copy=True)
         Input[k,j]=0
         Target[k]=j
         k+=1
-
+  print(Input.shape) 
+  print(Target.shape)     
   #Splitting the Data
   i=0
   for  i in range(itemslist.shape[0]):
@@ -193,11 +191,11 @@ def EnsembleSamplesTraining():
    np.savetxt("InputTr"+str(i)+".txt",InputTrain.astype(int),fmt='%d')
    np.savetxt("TargetTr"+str(i)+".txt",TargetTrain.astype(int),fmt='%d')
 def EnsembleSamplesTesting(nb):
-    itemslist = np.loadtxt("Subsets.txt")
+    itemslist = np.loadtxt("Classic/Subsets.txt")
     itemlist = np.concatenate(itemslist)
     values = list()
     for i in range(itemslist.shape[0]):
-        model = load_model(str(i))
+        model = load_model("Classic/"+str(i))
         testUser = np.array(pivot.iloc[nb,:],copy=True)
         testUser = testUser.reshape(1,testUser.shape[0])
         results = model.predict(testUser)
@@ -208,9 +206,8 @@ def EnsembleSamplesTesting(nb):
         results[i] = int(itemlist[results[i]]) 
     return results
 def EnsembleLearning():
- itembis = np.loadtxt("Subsets.txt")
- i=0
- for i in range(itembis.shape[0]):
+  itembis = np.loadtxt("Classic/Subsets.txt")
+  i=3
   liste = itembis[i,:]
   InputTest = np.loadtxt("InputTe"+str(i)+".txt")
   TargetTest = np.loadtxt("TargetTe"+str(i)+".txt")
@@ -225,12 +222,10 @@ def EnsembleLearning():
   model.add(Dense(len(liste),activation='softmax'))
   model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
   model.summary()
-  history = model.fit(InputTrain,TargetTrain,validation_data=(InputTest,TargetTest),epochs=80,batch_size=150)
+  model.fit(InputTrain,TargetTrain,validation_data=(InputTest,TargetTest),epochs=80,batch_size=150)
   model.save(format(i))
 def MitigateColdStart():
     coldstartusers = ColdStartUsers()
-    popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
-    titles = popularmovies.movieId.unique().tolist()
     newratings = pd.DataFrame(columns=['movieId','userId','rating','review_date','review_content'])
     for user in coldstartusers:
         movielist = ratings[ratings["userId"]==user]["movieId"].unique().tolist()
@@ -244,87 +239,27 @@ def MitigateColdStart():
             newratings.loc[len(newratings.index)] = [mv,user,newrating,'','']
     newratings.to_csv("new_ratings.csv")
 
-
 """Création des inputs et targets du RDN"""
-"""
-ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
-popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
-movies = pd.read_csv("movies.csv",delimiter=";")
-ratings = pd.merge(ratings,movies,on='movieId')
+ratings = pd.read_csv("sentiments0.6.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
 ChargerDataset(ratings,4)
-pivot = ratings.pivot_table(index=['userId'],columns=['movie_title'],values='rating',fill_value=0)
+pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique().tolist()
+print(n_users)
+print(n_items)
+EnsembleSamplesTraining()
 """
-"""
-
-i=0
-nbrel=0
-for i in range(pivot.shape[0]):
-    nbrel = nbrel + len(ListRelevant(pivot,n_items,i))
-k=0
-InputA = np.zeros((nbrel,n_items))
-Target = np.zeros((nbrel))
-
-for i in range(pivot.shape[0]):
-  for j in  ListRelevant(pivot,n_items,i):
-        InputA[k] = np.array(pivot.iloc[i,:],copy=True)
-        InputA[k,j]=0
-        Target[k]=j
-        k+=1
-traintest = GenTrainTest(nbrel,0.8)
-train = traintest[0]
-test = traintest[1]
-InputTr = np.zeros((len(train),n_items))
-InputTe = np.zeros((len(test),n_items))
-TargetTr = np.zeros((len(train)))
-TargetTe = np.zeros((len(test)))
-for i in range(len(train)):
-    InputTr[i]=InputA[train[i]-1,:]
-    TargetTr[i]=Target[train[i]-1]
-for i in range(len(test)):
-    InputTe[i]=InputA[test[i]-1,:]
-    TargetTe[i]=Target[test[i]-1]
-
-np.savetxt("InputTe.txt",InputTe.astype(int),fmt='%d')
-np.savetxt("TargetTe.txt",TargetTe.astype(int),fmt='%d')
-np.savetxt("InputTr.txt",InputTr.astype(int),fmt='%d')
-np.savetxt("TargetTr.txt",TargetTr.astype(int),fmt='%d')
-
-"""
+popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
+titles = list(set(popularmovies.movieId.unique()) & set(ratings.movieId.unique()))
+MitigateColdStart()
 
 
-"""
-model = Sequential()
-model.add(Input(shape=InputTr.shape[1]))
-model.add(Dense(100, activation='relu'))
-model.add(Dropout(rate=0.2))
-model.add(Dense(InputTr.shape[1],activation='softmax'))
-model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
-model.summary()
-history = model.fit(InputTr,TargetTr,validation_data=(InputTe,TargetTe),epochs=80,batch_size=250)
-
-# list all data in history
-print(history.history.keys())
-# summarize history for accuracy
-plt.plot(history.history['accuracy'])
-plt.plot(history.history['val_accuracy'])
-plt.title('model accuracy')
-plt.ylabel('accuracy')
-plt.xlabel('epoch')
-plt.legend(['train','test'], loc='upper left')
-plt.show()
-# summarize history for loss
-plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['train','test'], loc='upper left')
-plt.show()
-
+movies = pd.read_csv("movies.csv",delimiter=";")
+ratings = pd.merge(ratings,movies,on='movieId')
+ChargerDataset(ratings,4)
+ratings.to_csv("binarizedratings.csv")
 
 relevanttotal = Relevant(pivot)
 testmovies = random.sample(relevanttotal,80)
@@ -341,7 +276,6 @@ if(len(testusers)>0):
 """
 
 
-"""
 j=0
 n=96
 totalprec = list()
@@ -373,4 +307,3 @@ for j in range(pivot.shape[0]):
   totalrec.append(np.asarray(recalls))
 np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
 np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
-"""
