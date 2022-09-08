@@ -117,12 +117,12 @@ def MostRelevantMoviesbyContext(ratings):
     listmovies = list()
     if(currentday in weekdays):
       for i in range(ratings.shape[0]):
-        if(ratings["rating"][i]==1) and calendar.day_name[ratings["timestamp"][i].weekday()] in weekdays:
+        if(ratings["rating"][i]==1) and pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekdays:
             if(ratings['movieId'][i] not in listmovies):
                 listmovies.append(ratings['movieId'][i])
     else : 
       for i in range(ratings.shape[0]):
-        if(ratings["rating"][i]==1 and calendar.day_name[ratings["timestamp"][i].weekday()] in weekend):
+        if(ratings["rating"][i]==1 and pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekend):
             if(ratings['movieId'][i] not in listmovies):
                 listmovies.append(ratings['movieId'][i])
     return listmovies
@@ -153,7 +153,7 @@ def where(arr,nb):
         if(arr[i]==nb):
             return i
 def EnsembleSamplesTraining():
-  itemslist = np.loadtxt("Classic/Subsets.txt")
+  itemslist = np.loadtxt("LOD/Subsets.txt")
   i=0
   nbrel= ratings[ratings["rating"] == 1.0].shape[0]
   k=0
@@ -191,11 +191,11 @@ def EnsembleSamplesTraining():
    np.savetxt("InputTr"+str(i)+".txt",InputTrain.astype(int),fmt='%d')
    np.savetxt("TargetTr"+str(i)+".txt",TargetTrain.astype(int),fmt='%d')
 def EnsembleSamplesTesting(nb):
-    itemslist = np.loadtxt("Classic/Subsets.txt")
+    itemslist = np.loadtxt("LOD/Subsets.txt")
     itemlist = np.concatenate(itemslist)
     values = list()
     for i in range(itemslist.shape[0]):
-        model = load_model("Classic/"+str(i))
+        model = load_model(str(i))
         testUser = np.array(pivot.iloc[nb,:],copy=True)
         testUser = testUser.reshape(1,testUser.shape[0])
         results = model.predict(testUser)
@@ -206,8 +206,8 @@ def EnsembleSamplesTesting(nb):
         results[i] = int(itemlist[results[i]]) 
     return results
 def EnsembleLearning():
-  itembis = np.loadtxt("Classic/Subsets.txt")
-  i=3
+  itembis = np.loadtxt("LOD/Subsets.txt")
+  i=0
   liste = itembis[i,:]
   InputTest = np.loadtxt("InputTe"+str(i)+".txt")
   TargetTest = np.loadtxt("TargetTe"+str(i)+".txt")
@@ -240,7 +240,12 @@ def MitigateColdStart():
     newratings.to_csv("new_ratings.csv")
 
 """Création des inputs et targets du RDN"""
-ratings = pd.read_csv("sentiments0.6.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ratings = pd.read_csv("sentiments0.8.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
+titles = popularmovies.movieId.unique()
+titles = list(set(titles) & set(ratings.movieId.unique()))
+MitigateColdStart()
+"""
 ChargerDataset(ratings,4)
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 n_users = pivot.index.unique().shape[0]
@@ -249,8 +254,6 @@ list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique().tolist()
 print(n_users)
 print(n_items)
-EnsembleSamplesTraining()
-"""
 popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
 titles = list(set(popularmovies.movieId.unique()) & set(ratings.movieId.unique()))
 MitigateColdStart()
@@ -280,6 +283,7 @@ j=0
 n=96
 totalprec = list()
 totalrec = list()
+totalf = list()
 for j in range(pivot.shape[0]):
  recalls = list()
  precisions = list()
@@ -299,11 +303,12 @@ for j in range(pivot.shape[0]):
          if  list_movies[int(temp[k])] in rev:
           hr+=1
     prec = (hr)/i
-    rec =  (hr)/len(rev)
+    rec =  (hr)/len(rev) 
     precisions.append(prec)
     recalls.append(rec)
     i+=5
   totalprec.append(np.asarray(precisions))
   totalrec.append(np.asarray(recalls))
 np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
-np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')"""
+np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
+"""
