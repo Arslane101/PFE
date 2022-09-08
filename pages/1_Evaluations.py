@@ -5,7 +5,6 @@ import pandas as pd
 import streamlit as st
 from keras.models import load_model
 
-from CollaborativeFiltering import ChargerDataset
 @st.experimental_memo
 def LoadData():
   ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'])
@@ -32,26 +31,7 @@ def Relevant(matrix):
     return relevants   
 @st.experimental_singleton
 def EnsembleSamplesTesting(nb):
-    lod = st.session_state['lod']
-    context = st.session_state['context']
-    sentiment = st.session_state['context']
-    if(lod):
-      itemslist = np.loadtxt("LOD/Subsets.txt")
-      itemlist = np.concatenate(itemslist)
-      values = list()
-      for i in range(itemslist.shape[0]):
-        model = load_model("Classic/"+str(i))
-        testUser = np.array(pivot.iloc[nb,:],copy=True)
-        testUser = testUser.reshape(1,testUser.shape[0])
-        results = model.predict(testUser)
-        values.append(results)
-      results = np.concatenate(np.asarray(values))
-      results = np.argsort(results.reshape(itemlist.shape[0]))[::-1] 
-      for i in range(results.shape[0]):
-        results[i] = int(itemlist[results[i]]) 
-    elif(context):
-      if(lod):
-        itemslist = np.loadtxt("LOD/Subsets.txt")
+        itemslist = np.loadtxt("Classic/Subsets.txt")
         itemlist = np.concatenate(itemslist)
         values = list()
         for i in range(itemslist.shape[0]):
@@ -64,42 +44,11 @@ def EnsembleSamplesTesting(nb):
         results = np.argsort(results.reshape(itemlist.shape[0]))[::-1] 
         for i in range(results.shape[0]):
          results[i] = int(itemlist[results[i]]) 
-    elif(sentiment):
-      if(lod):
-        itemslist = np.loadtxt("SentimentLOD/Subsets.txt")
-        itemlist = np.concatenate(itemslist)
-        values = list()
-        for i in range(itemslist.shape[0]):
-         model = load_model("Classic/"+str(i))
-         testUser = np.array(pivot.iloc[nb,:],copy=True)
-         testUser = testUser.reshape(1,testUser.shape[0])
-         results = model.predict(testUser)
-         values.append(results)
-        results = np.concatenate(np.asarray(values))
-        results = np.argsort(results.reshape(itemlist.shape[0]))[::-1] 
-        for i in range(results.shape[0]):
-         results[i] = int(itemlist[results[i]]) 
-      else: 
-        itemslist = np.loadtxt("Sentiment/Subsets.txt")
-        itemlist = np.concatenate(itemslist)
-        values = list()
-        for i in range(itemslist.shape[0]):
-         model = load_model("Classic/"+str(i))
-         testUser = np.array(pivot.iloc[nb,:],copy=True)
-         testUser = testUser.reshape(1,testUser.shape[0])
-         results = model.predict(testUser)
-         values.append(results)
-        results = np.concatenate(np.asarray(values))
-        results = np.argsort(results.reshape(itemlist.shape[0]))[::-1] 
-        for i in range(results.shape[0]):
-         results[i] = int(itemlist[results[i]]) 
-
-
-      return results
+        return results
 def MovieList():
     num = st.session_state['numrec2']
     results = EnsembleSamplesTesting(int(number)-1)
-    temp = results[:(int(num))]
+    temp = results[:num]
     movieslist = list()
     for i in temp:
       movieslist.append(list_movies[i])
@@ -126,8 +75,9 @@ def Plots():
       else: rec=0
       i+=1
       precisions.append(prec)
-      recalls.append(rec)    
-    return precisions,recalls,len(rev)
+      recalls.append(rec)
+    mesures = np.column_stack((precisions,recalls))       
+    return mesures,len(rev)
 st.set_page_config(
     page_title="Comparaison des Différentes Approches",
     page_icon="👋",
@@ -142,25 +92,25 @@ st.sidebar.number_input("Alpha",0.2,1.0,step=0.1)
 col1, col2,col3 = st.tabs(["Filtrage Collaboratif","Filtrage basé Contenu","Filtrage Hybride"])
 
 ratings,movies = LoadData()
-pivot = ratings.pivot_table(index=['userId'],columns=['movie_title'],values='rating',fill_value=0)
-list_movies = pivot.columns.unique()
+pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+list_movies = movies.movieId.unique()
 with col1:
-  number = st.number_input("Saisissez votre numéro d'utilisateur",1,943,key='select',on_change=Plots)
-  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=MovieList)
+  number = st.number_input("Saisissez votre numéro d'utilisateur",1,943,key='select',on_change=Plots,value=1)
+  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=MovieList,value=1)
   movie = MovieList()
   for i in movie:
    st.text(i)
   Results = Plots()
-  if(Results[2]!=0):
-    st.line_chart(data=Results[0])
-    st.line_chart(data=Results[1])
+  if(Results[1]!=0):
+    results = pd.DataFrame(Results[0],columns=['Précision','Rappel'])
+    st.line_chart(data=results)
   else: st.write("Cet utilisateur n'a aucun film pertinent")
 with col2:
-  number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select')
-  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2')
+  number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select1')
+  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec3')
 with col3:
-  number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select')
-  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2')
+  number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select2')
+  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec4')
     
 
 
