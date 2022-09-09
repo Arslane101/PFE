@@ -27,52 +27,6 @@ def ChargerDataset(ratings,th):
         if int(ratings['rating'][i]) >= int(th):
             ratings.loc[i,'rating']= int(1)
         else: ratings.loc[i,'rating']=int(0) 
-def CheckValues():
-    ratings = pd.read_csv("ml-100k/ratings.csv",delimiter=";")
-    pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-    list_items = pivot.columns.unique()
-    movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
-    list_movies = movies['movieId'].unique().tolist()
-    for i in range(len(list_items)):
-        if(list_movies.count(list_items[i]) ==0 ):
-            ratings.drop(ratings[ratings['movieId']==list_items[i]].index,inplace=True)
-    ratings.to_csv("specificratings.csv")
-    return ratings
-def ContextualisationDataset(ratings,th,genrelist,country):
-    items = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
-    movies = pd.read_csv("ml-100k/dbpediamovies.csv",delimiter=";")
-    specificmovies = movies[movies['country'].isin(country)]
-    uniques = specificmovies['name'].unique()
-    for i in range(ratings.shape[0]):
-        listid = GenresSpecificMovie(ratings['movieId'][i])
-        temp = items.loc[items['movieId']==ratings['movieId'][i]]
-        title = temp['SPARQLTitle'][temp.index[0]]
-        if(len(list(set(genrelist).intersection(listid)))!=0 ):
-                ratings.loc[i,'rating']=float(1)
-        else: ratings.loc[i,'rating']=float(0)
-    return ratings
-def GenresSpecificMovie(id):
-    movies = pd.read_csv("ml-100k/filmsenrichis.csv",delimiter=";")
-    moviegenre = list()
-    genrelist = open("ml-100k/genres.txt","r").readlines()
-    for i in range(len(genrelist)):
-        temp = movies.loc[movies['movieId']==id]
-        val =temp.index
-        if(len(val)!=0):
-            if(temp[genrelist[i].strip()][val[0]]==1):
-             moviegenre.append(genrelist[i].strip())
-    return moviegenre  
-def GenTrainTest(nb_users,per):
-    nbgen = int(nb_users*per)
-    train = random.sample(range(1,nb_users),nbgen)
-    test =  list()
-    i=0
-    while(i< (nb_users-nbgen)):
-        x = random.randrange(1,nb_users)
-        if train.count(x) == 0:
-            test.append(x)
-            i+=1     
-    return train,test
 def ListRelevant(matrix,n_items,ind):
     relevants = []
     for i in range(n_items):
@@ -98,34 +52,23 @@ def Relevant(matrix):
             if(matrix.iloc[i,j]==1) and j not in relevants:
               relevants.append(j)
     return relevants   
-def GenInputTargetUser(pivot,n_items,ind):
-    i=0
-    Input = np.zeros((nbrel,n_items))
-    Target = np.zeros((nbrel))
-    for nb in train:
-     for j in  ListRelevant(pivot,n_items,nb):
-        Input[i] = np.array(pivot.iloc[nb,:],copy=True)
-        Input[i,j]=0
-        Target[i]=j
-        i+=1 
-    return Input,Target
 def MostRelevantMoviesbyContext(ratings):
     currentdate = datetime.now()
+    popularmovies = MostRatedMovies(ratings)
     currentday = currentdate.strftime("%A")
     weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
     weekend = ["Saturday","Sunday"]
     listmovies = list()
     if(currentday in weekdays):
-      for i in range(ratings.shape[0]):
-        if(ratings["rating"][i]==1) and pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekdays:
-            if(ratings['movieId'][i] not in listmovies):
-                listmovies.append(ratings['movieId'][i])
+        ratings = ratings[calendar.day_name[ratings["review_date"][i].weekday()] in weekdays]
+        listmovies = list(set(popularmovies) & set(ratings.movieId.unique()))
     else : 
-      for i in range(ratings.shape[0]):
-        if(ratings["rating"][i]==1 and pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekend):
-            if(ratings['movieId'][i] not in listmovies):
-                listmovies.append(ratings['movieId'][i])
-    return listmovies
+        ratings = ratings[calendar.day_name[ratings["review_date"][i].weekday()] in weekend]
+        listmovies = list(set(popularmovies) & set(ratings.movieId.unique()))
+    movielist = list()
+    for movies in listmovies:
+        movielist.append(where(list_movies,movies))
+    return movielist
 def ColdStartUsers():
     coldstart = list()
     list_users = ratings.userId.unique()
@@ -207,7 +150,7 @@ def EnsembleSamplesTesting(nb):
     return results
 def EnsembleLearning():
   itembis = np.loadtxt("LOD/Subsets.txt")
-  i=0
+  i=3
   liste = itembis[i,:]
   InputTest = np.loadtxt("InputTe"+str(i)+".txt")
   TargetTest = np.loadtxt("TargetTe"+str(i)+".txt")
@@ -238,15 +181,14 @@ def MitigateColdStart():
             newrating = random.randrange(4,5)
             newratings.loc[len(newratings.index)] = [mv,user,newrating,'','']
     newratings.to_csv("new_ratings.csv")
-
+def MostRatedMovies(ratings):
+    ratings = ratings.groupby('movieId')[['rating']].mean()
+    ratings = ratings[ratings["rating"] >= 4]
+    return ratings.movieId.unique()
 """Création des inputs et targets du RDN"""
-ratings = pd.read_csv("sentiments0.8.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
-popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
-titles = popularmovies.movieId.unique()
-titles = list(set(titles) & set(ratings.movieId.unique()))
-MitigateColdStart()
-"""
+ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
 ChargerDataset(ratings,4)
+ratings.to_csv("BinarizedSentimentRatings.csv")
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
@@ -254,6 +196,11 @@ list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique().tolist()
 print(n_users)
 print(n_items)
+print(MostRelevantMoviesbyContext(ratings))
+
+"""
+
+
 popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
 titles = list(set(popularmovies.movieId.unique()) & set(ratings.movieId.unique()))
 MitigateColdStart()

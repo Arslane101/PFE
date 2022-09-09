@@ -1,5 +1,6 @@
 
 import itertools
+from unittest import result
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -8,8 +9,11 @@ from keras.models import load_model
 @st.experimental_memo
 def LoadData():
   ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'])
+  sentimentratings = pd.read_csv("binarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
+  lodratings =  pd.read_csv("binarizedratingsLOD.csv",delimiter=";",parse_dates=['review_date'])
+  sentimentlodratings =  pd.read_csv("binarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
   movies = pd.read_csv("movies.csv",delimiter=";")
-  return ratings,movies
+  return ratings,sentimentratings,lodratings,sentimentlodratings,movies
 def ListRelevant(matrix,n_items,ind):
     relevants = []
     for i in range(n_items):
@@ -29,13 +33,40 @@ def Relevant(matrix):
             if(matrix.iloc[i,j]==1) and j not in relevants:
               relevants.append(j)
     return relevants   
+def ContextFiltering(results):
+  return results
 @st.experimental_singleton
-def EnsembleSamplesTesting(nb):
-        itemslist = np.loadtxt("Classic/Subsets.txt")
+def Evaluations(nb):
+  lod = st.session_state["lod"]
+  sentiment =st.session_state["sentiment"]
+  context =  st.session_state["context"]
+  if(lod):
+    if(sentiment):
+      results = EnsembleSamplesTesting("LOD/Subsets.txt","SentimentLOD/",nb,pivotsentimentlod)
+      if(context):
+        results = ContextFiltering()
+    results = EnsembleSamplesTesting("LOD/Subsets.txt","LOD/",pivotlod)
+    if(context):
+      results = ContextFiltering()
+  if(sentiment):
+    results = EnsembleSamplesTesting("Classic/Subsets.txt","Sentiments/",pivotsentiment)
+    if(context):
+      results = ContextFiltering()
+  else : 
+    results = EnsembleSamplesTesting("Classic/Subsets.txt","Classic",pivot)
+    if(context):
+      results = ContextFiltering()
+  return results
+        
+
+  return results
+@st.experimental_singleton
+def EnsembleSamplesTesting(subsets,model,nb,pivot):
+        itemslist = np.loadtxt(subsets)
         itemlist = np.concatenate(itemslist)
         values = list()
         for i in range(itemslist.shape[0]):
-         model = load_model("Classic/"+str(i))
+         model = load_model(model+str(i))
          testUser = np.array(pivot.iloc[nb,:],copy=True)
          testUser = testUser.reshape(1,testUser.shape[0])
          results = model.predict(testUser)
@@ -47,7 +78,7 @@ def EnsembleSamplesTesting(nb):
         return results
 def MovieList():
     num = st.session_state['numrec2']
-    results = EnsembleSamplesTesting(int(number)-1)
+    results = Evaluations(int(number)-1)
     temp = results[:num]
     movieslist = list()
     for i in temp:
@@ -55,7 +86,7 @@ def MovieList():
     return movieslist
 def Plots():
     number = st.session_state['select']
-    results = EnsembleSamplesTesting(int(number)-1)
+    results = Evaluations(int(number)-1)
     n=96
     i=1
     recalls = []
@@ -91,8 +122,11 @@ st.sidebar.write("Paramètres Hybride")
 st.sidebar.number_input("Alpha",0.2,1.0,step=0.1)
 col1, col2,col3 = st.tabs(["Filtrage Collaboratif","Filtrage basé Contenu","Filtrage Hybride"])
 
-ratings,movies = LoadData()
+ratings,sentimentratings,lodratings,sentimentlodratings,movies = LoadData()
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+pivotsentiment = sentimentratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+pivotlod = lodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+pivotsentimentlod = sentimentlodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 list_movies = movies.movieId.unique()
 with col1:
   number = st.number_input("Saisissez votre numéro d'utilisateur",1,943,key='select',on_change=Plots,value=1)
