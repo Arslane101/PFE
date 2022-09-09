@@ -136,7 +136,7 @@ pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies = LoadData()
 
 list_movies = pivot.columns.unique()
 with col1:
-  number = st.number_input("Saisissez votre numéro d'utilisateur",1,943,key='select',value=1)
+  number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select',value=1)
   numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=MovieList,value=1)
   movie = MovieList()
   for i in movie:
