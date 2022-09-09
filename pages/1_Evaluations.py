@@ -6,14 +6,19 @@ import pandas as pd
 import streamlit as st
 from keras.models import load_model
 
+
 @st.experimental_memo
 def LoadData():
   ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'])
-  sentimentratings = pd.read_csv("binarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
+  sentimentratings = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
   lodratings =  pd.read_csv("binarizedratingsLOD.csv",delimiter=";",parse_dates=['review_date'])
-  sentimentlodratings =  pd.read_csv("binarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
+  sentimentlodratings =  pd.read_csv("BinarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
   movies = pd.read_csv("movies.csv",delimiter=";")
-  return ratings,sentimentratings,lodratings,sentimentlodratings,movies
+  pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+  pivotsentiment = sentimentratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+  pivotlod = lodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+  pivotsentimentlod = sentimentlodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+  return pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies
 def ListRelevant(matrix,n_items,ind):
     relevants = []
     for i in range(n_items):
@@ -35,38 +40,36 @@ def Relevant(matrix):
     return relevants   
 def ContextFiltering(results):
   return results
-@st.experimental_singleton
-def Evaluations(nb):
+def Evaluations():
   lod = st.session_state["lod"]
   sentiment =st.session_state["sentiment"]
   context =  st.session_state["context"]
-  if(lod):
-    if(sentiment):
-      results = EnsembleSamplesTesting("LOD/Subsets.txt","SentimentLOD/",nb,pivotsentimentlod)
+  nb = st.session_state['select']
+  nb = int(nb)-1
+  if(lod==True and sentiment==True):
+      results = EnsembleSamplesTesting("LOD/Subsets.txt","SentimentsLOD/",nb,pivotsentimentlod)
       if(context):
         results = ContextFiltering()
-    results = EnsembleSamplesTesting("LOD/Subsets.txt","LOD/",pivotlod)
-    if(context):
+  elif(lod==True and  sentiment==False): 
+     results = EnsembleSamplesTesting("LOD/Subsets.txt","LOD/",nb,pivotlod)
+     if(context):
       results = ContextFiltering()
-  if(sentiment):
-    results = EnsembleSamplesTesting("Classic/Subsets.txt","Sentiments/",pivotsentiment)
-    if(context):
-      results = ContextFiltering()
+  elif(sentiment==True and lod==False):
+        results = EnsembleSamplesTesting("Classic/Subsets.txt","Sentiments/",nb,pivotsentiment)
+        if(context):
+         results = ContextFiltering()
   else : 
-    results = EnsembleSamplesTesting("Classic/Subsets.txt","Classic",pivot)
+    results = EnsembleSamplesTesting("Classic/Subsets.txt","Classic/",nb,pivot)
     if(context):
       results = ContextFiltering()
-  return results
-        
-
   return results
 @st.experimental_singleton
-def EnsembleSamplesTesting(subsets,model,nb,pivot):
+def EnsembleSamplesTesting(subsets,mode,nb,pivot):
         itemslist = np.loadtxt(subsets)
         itemlist = np.concatenate(itemslist)
         values = list()
         for i in range(itemslist.shape[0]):
-         model = load_model(model+str(i))
+         model = load_model(mode+str(i))
          testUser = np.array(pivot.iloc[nb,:],copy=True)
          testUser = testUser.reshape(1,testUser.shape[0])
          results = model.predict(testUser)
@@ -78,20 +81,27 @@ def EnsembleSamplesTesting(subsets,model,nb,pivot):
         return results
 def MovieList():
     num = st.session_state['numrec2']
-    results = Evaluations(int(number)-1)
+    results = Evaluations()
     temp = results[:num]
     movieslist = list()
     for i in temp:
       movieslist.append(list_movies[i])
     return movieslist
 def Plots():
-    number = st.session_state['select']
-    results = Evaluations(int(number)-1)
+    lod = st.session_state["lod"]
+    sentiment =st.session_state["sentiment"]
+    results = Evaluations()
     n=96
     i=1
     recalls = []
     precisions = []
-    rev = ListRelevant(pivot,pivot.shape[1],int(st.session_state['select'])-1)
+    if(lod==True and sentiment==True):
+      rev = ListRelevant(pivotsentimentlod,pivotsentimentlod.shape[1],int(st.session_state['select'])-1)
+    elif(lod==True and  sentiment==False):
+      rev = ListRelevant(pivotlod,pivotlod.shape[1],int(st.session_state['select'])-1)
+    elif(sentiment==True and lod==False):
+      rev = ListRelevant(pivotsentiment,pivotsentiment.shape[1],int(st.session_state['select'])-1)
+    else : rev = ListRelevant(pivot,pivot.shape[1],int(st.session_state['select'])-1)  
     while(i<n):
       rec = 0
       prec = 0
@@ -115,21 +125,18 @@ st.set_page_config(
     layout="wide",
 )
 st.sidebar.write("Paramètres Filtrage Collaboratif")
-lod = st.sidebar.checkbox('Linked Open Data',on_change=EnsembleSamplesTesting,key='lod')
-context = st.sidebar.checkbox('Informations Contextuelles',on_change=EnsembleSamplesTesting,key='context')
-sentiment = st.sidebar.checkbox('Analyse de Sentiments',on_change=EnsembleSamplesTesting,key='sentiment')
+lod = st.sidebar.checkbox('Linked Open Data',key='lod')
+context = st.sidebar.checkbox('Informations Contextuelles',key='context')
+sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment')
 st.sidebar.write("Paramètres Hybride")
 st.sidebar.number_input("Alpha",0.2,1.0,step=0.1)
 col1, col2,col3 = st.tabs(["Filtrage Collaboratif","Filtrage basé Contenu","Filtrage Hybride"])
 
-ratings,sentimentratings,lodratings,sentimentlodratings,movies = LoadData()
-pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-pivotsentiment = sentimentratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-pivotlod = lodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-pivotsentimentlod = sentimentlodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-list_movies = movies.movieId.unique()
+pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies = LoadData()
+
+list_movies = pivot.columns.unique()
 with col1:
-  number = st.number_input("Saisissez votre numéro d'utilisateur",1,943,key='select',on_change=Plots,value=1)
+  number = st.number_input("Saisissez votre numéro d'utilisateur",1,943,key='select',value=1)
   numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=MovieList,value=1)
   movie = MovieList()
   for i in movie:
