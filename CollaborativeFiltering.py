@@ -60,15 +60,16 @@ def MostRelevantMoviesbyContext(ratings):
     weekend = ["Saturday","Sunday"]
     listmovies = list()
     if(currentday in weekdays):
-        ratings = ratings[calendar.day_name[ratings["review_date"][i].weekday()] in weekdays]
-        listmovies = list(set(popularmovies) & set(ratings.movieId.unique()))
+        for i in range(ratings.shape[0]):
+          if pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekdays and ratings['rating'][i]>=3:
+            if(ratings['movieId'][i] in popularmovies and ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
     else : 
-        ratings = ratings[calendar.day_name[ratings["review_date"][i].weekday()] in weekend]
-        listmovies = list(set(popularmovies) & set(ratings.movieId.unique()))
-    movielist = list()
-    for movies in listmovies:
-        movielist.append(where(list_movies,movies))
-    return movielist
+        for i in range(ratings.shape[0]):
+          if pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekend and ratings['rating'][i]>=3:
+            if(ratings['movieId'][i] in popularmovies and ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    return listmovies
 def ColdStartUsers():
     coldstart = list()
     list_users = ratings.userId.unique()
@@ -92,7 +93,7 @@ def RandomSubsets(n_items,nb):
         subsets.append(sub)
     return subsets
 def where(arr,nb):
-    for i in range(arr.shape[0]):
+    for i in range(len(arr)):
         if(arr[i]==nb):
             return i
 def EnsembleSamplesTraining():
@@ -134,11 +135,11 @@ def EnsembleSamplesTraining():
    np.savetxt("InputTr"+str(i)+".txt",InputTrain.astype(int),fmt='%d')
    np.savetxt("TargetTr"+str(i)+".txt",TargetTrain.astype(int),fmt='%d')
 def EnsembleSamplesTesting(nb):
-    itemslist = np.loadtxt("LOD/Subsets.txt")
+    itemslist = np.loadtxt("Classic/Subsets.txt")
     itemlist = np.concatenate(itemslist)
     values = list()
     for i in range(itemslist.shape[0]):
-        model = load_model(str(i))
+        model = load_model("Sentiments/"+str(i))
         testUser = np.array(pivot.iloc[nb,:],copy=True)
         testUser = testUser.reshape(1,testUser.shape[0])
         results = model.predict(testUser)
@@ -182,13 +183,40 @@ def MitigateColdStart():
             newratings.loc[len(newratings.index)] = [mv,user,newrating,'','']
     newratings.to_csv("new_ratings.csv")
 def MostRatedMovies(ratings):
-    ratings = ratings.groupby('movieId')[['rating']].mean()
+    ratings = ratings.groupby(['movieId'])[['rating']].mean()
     ratings = ratings[ratings["rating"] >= 4]
-    return ratings.movieId.unique()
+    return ratings.index.unique().tolist()
+def FilterContext(results,movies):
+    movie = list()
+    for mov in movies:
+        movie.append(where(list_movies,mov))
+    result = list()
+    for elt in results:
+        if( elt in movie):
+            result.append(elt)
+    return result
+def EnsembleSamples(nb):
+    itemslist = np.loadtxt("Classic/Subsets.txt")
+    itemlist = np.concatenate(itemslist)
+    values = list()
+    for i in range(itemslist.shape[0]):
+        model = load_model("Classic/"+str(i))
+        testUser = np.array(pivot.iloc[nb,:],copy=True)
+        testUser = testUser.reshape(1,testUser.shape[0])
+        results = model.predict(testUser)
+        values.append(results)
+    results = np.concatenate(np.asarray(values))
+    results = np.argsort(results.reshape(itemlist.shape[0]))
+    result = pd.DataFrame(columns=['movieId','probability'])
+    for i in range(results.shape[0]):
+        result.loc[len(result.index)]=[list_movies[int(itemlist[i])],results[i]]
+    return result
+
 """Création des inputs et targets du RDN"""
 ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+context = MostRelevantMoviesbyContext(ratings)
+print(len(context))
 ChargerDataset(ratings,4)
-ratings.to_csv("BinarizedSentimentRatings.csv")
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
@@ -196,10 +224,9 @@ list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique().tolist()
 print(n_users)
 print(n_items)
-print(MostRelevantMoviesbyContext(ratings))
+
 
 """
-
 
 popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
 titles = list(set(popularmovies.movieId.unique()) & set(ratings.movieId.unique()))
@@ -225,13 +252,14 @@ if(len(testusers)>0):
     testusers = random.sample(testusers,25)
 """
 
-"""
+
 j=0
 n=96
 totalprec = list()
 totalrec = list()
 totalf = list()
-for j in range(pivot.shape[0]):
+for j in range(4000):
+ print(j)
  recalls = list()
  precisions = list()
  recalls.append(j)
@@ -241,6 +269,7 @@ for j in range(pivot.shape[0]):
  rev  = ListSpecRel(testUser)
  if(len(rev)!=0):
   results = EnsembleSamplesTesting(j)
+  results = FilterContext(results,context)
   recalls.append(len(rev))
   precisions.append(len(rev))    
   while(i<n):   
@@ -258,4 +287,3 @@ for j in range(pivot.shape[0]):
   totalrec.append(np.asarray(recalls))
 np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
 np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
-"""
