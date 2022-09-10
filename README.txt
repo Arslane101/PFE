@@ -15,6 +15,7 @@ This and other GroupLens data sets are publicly available for download at <http:
 Usage License
 =============
 
+
 Neither the University of Minnesota nor any of the researchers involved can guarantee the correctness of the data, its suitability for any particular purpose, or the validity of results based on the use of the data set. The data set may be used for any research purposes under the following conditions:
 
 * The user may not state or imply any endorsement from the University of Minnesota or the GroupLens Research Group.

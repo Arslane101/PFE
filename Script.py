@@ -239,13 +239,10 @@ def MitigateColdStart():
             newratings.loc[len(newratings.index)] = [mv,user,newrating,'','']
     newratings.to_csv("new_ratings.csv")
 
+
+
 """Création des inputs et targets du RDN"""
 ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
-sentiments = pd.read_csv("PerformedSentiments08.csv",delimiter=";")
-for i in range(ratings.shape[0]):
-    if(pd.isnull(ratings['rating'][i])):
-        sentiments['rating'][i] = sentiments['rating'][i]
-    else : 
-       x = int((sentiments['rating'][i] - (0.8)*ratings['rating'][i])/(100*0.2))
-       sentiments['rating'][i] = int(0.6*ratings["rating"][i] + 0.4*x)
-sentiments.to_csv("sentiments0.6.csv")
+
+
+

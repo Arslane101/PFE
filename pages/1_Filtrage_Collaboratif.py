@@ -7,7 +7,7 @@ import streamlit as st
 from keras.models import load_model
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from Accueil import pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies
+
 
 def ListRelevant(matrix,n_items,ind):
     relevants = []
@@ -65,22 +65,29 @@ def EnsembleSamplesTesting(subsets,mode,nb,pivot):
          results = model.predict(testUser)
          values.append(results)
         results = np.concatenate(np.asarray(values))
+        copyresults = results.reshape(itemlist.shape[0])
+        result = pd.DataFrame(columns=['movieId','probability'])
+        for i in range(copyresults.shape[0]):
+         result.loc[len(result.index)]=[list_movies[int(itemlist[i])],copyresults[i]]
+    
         results = np.argsort(results.reshape(itemlist.shape[0]))[::-1] 
         for i in range(results.shape[0]):
          results[i] = int(itemlist[results[i]]) 
-        return results
+        
+        return result,results
+   
 def MovieList():
     num = st.session_state['numrec2']
-    results = Evaluations()
+    result,results = Evaluations()
     temp = results[:num]
     movieslist = list()
     for i in temp:
-      movieslist.append(list_movies[i])
+      movieslist.append(movies[movies['rotten_tomatoes_link']==list_movies[i]]['movie_title'].unique())
     return movieslist
 def PlotsColab():
     lod = st.session_state["lod"]
     sentiment =st.session_state["sentiment"]
-    results = Evaluations()
+    result,results = Evaluations()
     n=96
     i=1
     recalls = []
@@ -108,7 +115,7 @@ def PlotsColab():
       precisions.append(prec)
       recalls.append(rec)
     mesures = np.column_stack((precisions,recalls))       
-    return mesures,len(rev)
+    return result,mesures,len(rev)
 
 st.set_page_config(
     page_title="Comparaison des Différentes Approches",
@@ -119,8 +126,11 @@ st.sidebar.write("Paramètres Filtrage Collaboratif")
 lod = st.sidebar.checkbox('Linked Open Data',key='lod')
 context = st.sidebar.checkbox('Informations Contextuelles',key='context')
 sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment')
-
-
+pivot = st.session_state.pivot
+pivotlod = st.session_state.pivotlod
+pivotsentiment = st.session_state.pivotsentiment
+pivotsentimentlod = st.session_state.pivotsentimentlod
+movies = st.session_state.movies
  
 list_users = pivot.index.unique()
 list_movies = pivot.columns.unique()
@@ -131,7 +141,9 @@ movie = MovieList()
 for i in movie:
   st.text(i)
 Results = PlotsColab()
-if(Results[1]!=0):
-  results = pd.DataFrame(Results[0],columns=['Précision','Rappel'])
+if('resultcf' not in st.session_state):
+  st.session_state['resultcf']=Results[0]
+if(Results[2]!=0):
+  results = pd.DataFrame(Results[1],columns=['Précision','Rappel'])
   st.line_chart(data=results)
 else: st.write("Cet utilisateur n'a aucun film pertinent")

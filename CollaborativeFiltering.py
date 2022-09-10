@@ -18,6 +18,8 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from yaml import load
+
+from ContentBased import contentbased
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
     
 def ChargerDataset(ratings,th):
@@ -184,7 +186,7 @@ def MitigateColdStart():
     newratings.to_csv("new_ratings.csv")
 def MostRatedMovies(ratings):
     ratings = ratings.groupby(['movieId'])[['rating']].mean()
-    ratings = ratings[ratings["rating"] >= 4]
+    ratings = ratings[ratings["rating"] >= 3]
     return ratings.index.unique().tolist()
 def FilterContext(results,movies):
     movie = list()
@@ -206,17 +208,15 @@ def EnsembleSamples(nb):
         results = model.predict(testUser)
         values.append(results)
     results = np.concatenate(np.asarray(values))
-    results = np.argsort(results.reshape(itemlist.shape[0]))
+    results = results.reshape(itemlist.shape[0])
     result = pd.DataFrame(columns=['movieId','probability'])
     for i in range(results.shape[0]):
         result.loc[len(result.index)]=[list_movies[int(itemlist[i])],results[i]]
     return result
 
 """Création des inputs et targets du RDN"""
-ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
-context = MostRelevantMoviesbyContext(ratings)
-print(len(context))
-ChargerDataset(ratings,4)
+ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+movies = pd.read_csv('movies.csv', delimiter=';')
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
@@ -224,9 +224,25 @@ list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique().tolist()
 print(n_users)
 print(n_items)
+def Hybrid(alpha,nb):
+    cbresults = contentbased(list_users[nb],movies,ratings)[1]
+    cfresults = EnsembleSamples(nb)
+    cbresults = cbresults.sort_values(by=['movieId'])
+    cbresults = cbresults.reset_index()
+    cbresults['similarity'] = cbresults['similarity'].apply(lambda x:  x/int(round(cbresults['similarity'].sum())))
+    cfresults = cfresults.sort_values(by=['movieId'])
+    cfresults = cfresults.reset_index()
+    cfresults['probability']= cfresults['probability'].apply(lambda x:  x/int(round(cfresults['probability'].sum())))
+    hybrid = pd.DataFrame(columns=['movieId','probability'])
+    for i in range(cfresults.shape[0]):
+        x = alpha*cfresults['probability'][i]+(1-alpha)*cbresults['similarity'][i]
+        hybrid.loc[len(hybrid.index)]=[cfresults['movieId'][i],x]
+    return hybrid
 
 
 """
+context = MostRelevantMoviesbyContext(ratings)
+print(len(context))
 
 popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
 titles = list(set(popularmovies.movieId.unique()) & set(ratings.movieId.unique()))
@@ -258,8 +274,7 @@ n=96
 totalprec = list()
 totalrec = list()
 totalf = list()
-for j in range(4000):
- print(j)
+for j in range(2050):
  recalls = list()
  precisions = list()
  recalls.append(j)
@@ -268,15 +283,16 @@ for j in range(4000):
  testUser = np.array(pivot.iloc[j,:],copy=True)
  rev  = ListSpecRel(testUser)
  if(len(rev)!=0):
-  results = EnsembleSamplesTesting(j)
-  results = FilterContext(results,context)
+  results = Hybrid(0.2,j)
+  results = results.sort_values(by=['probability'],ascending=False)
+  results = results.reset_index()
   recalls.append(len(rev))
   precisions.append(len(rev))    
   while(i<n):   
     hr=0
-    temp =results[:i]
+    temp = results.loc[0:i-1,:] 
     for k in range(len(temp)):
-         if  list_movies[int(temp[k])] in rev:
+         if  temp['movieId'][k] in rev:
           hr+=1
     prec = (hr)/i
     rec =  (hr)/len(rev) 
