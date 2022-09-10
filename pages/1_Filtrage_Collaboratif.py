@@ -5,20 +5,10 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from keras.models import load_model
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from Accueil import pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies
 
-
-@st.experimental_memo
-def LoadData():
-  ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'])
-  sentimentratings = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
-  lodratings =  pd.read_csv("binarizedratingsLOD.csv",delimiter=";",parse_dates=['review_date'])
-  sentimentlodratings =  pd.read_csv("BinarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
-  movies = pd.read_csv("movies.csv",delimiter=";")
-  pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-  pivotsentiment = sentimentratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-  pivotlod = lodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-  pivotsentimentlod = sentimentlodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-  return pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies
 def ListRelevant(matrix,n_items,ind):
     relevants = []
     for i in range(n_items):
@@ -63,7 +53,7 @@ def Evaluations():
     if(context):
       results = ContextFiltering()
   return results
-@st.experimental_singleton
+@st.experimental_memo
 def EnsembleSamplesTesting(subsets,mode,nb,pivot):
         itemslist = np.loadtxt(subsets)
         itemlist = np.concatenate(itemslist)
@@ -87,7 +77,7 @@ def MovieList():
     for i in temp:
       movieslist.append(list_movies[i])
     return movieslist
-def Plots():
+def PlotsColab():
     lod = st.session_state["lod"]
     sentiment =st.session_state["sentiment"]
     results = Evaluations()
@@ -119,6 +109,7 @@ def Plots():
       recalls.append(rec)
     mesures = np.column_stack((precisions,recalls))       
     return mesures,len(rev)
+
 st.set_page_config(
     page_title="Comparaison des Différentes Approches",
     page_icon="👋",
@@ -128,31 +119,19 @@ st.sidebar.write("Paramètres Filtrage Collaboratif")
 lod = st.sidebar.checkbox('Linked Open Data',key='lod')
 context = st.sidebar.checkbox('Informations Contextuelles',key='context')
 sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment')
-st.sidebar.write("Paramètres Hybride")
-st.sidebar.number_input("Alpha",0.2,1.0,step=0.1)
-col1, col2,col3 = st.tabs(["Filtrage Collaboratif","Filtrage basé Contenu","Filtrage Hybride"])
 
-pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies = LoadData()
 
+ 
+list_users = pivot.index.unique()
 list_movies = pivot.columns.unique()
-with col1:
-  number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select',value=1)
-  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=MovieList,value=1)
-  movie = MovieList()
-  for i in movie:
-   st.text(i)
-  Results = Plots()
-  if(Results[1]!=0):
-    results = pd.DataFrame(Results[0],columns=['Précision','Rappel'])
-    st.line_chart(data=results)
-  else: st.write("Cet utilisateur n'a aucun film pertinent")
-with col2:
-  number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select1')
-  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec3')
-with col3:
-  number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select2')
-  numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec4')
-    
 
-
-
+number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select',value=1)
+numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=MovieList,value=1)
+movie = MovieList()
+for i in movie:
+  st.text(i)
+Results = PlotsColab()
+if(Results[1]!=0):
+  results = pd.DataFrame(Results[0],columns=['Précision','Rappel'])
+  st.line_chart(data=results)
+else: st.write("Cet utilisateur n'a aucun film pertinent")
