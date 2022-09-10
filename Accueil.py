@@ -30,6 +30,20 @@ st.set_page_config(
     layout="wide",
 )
 ratings,sentimentratings,pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies = LoadData()
+if('ratings' not in st.session_state):
+    st.session_state.ratings = ratings
+if('sentimentratings' not in st.session_state):
+    st.session_state.sentimentratings = sentimentratings
+if('pivot' not in st.session_state):
+    st.session_state.pivot = pivot
+if('pivotlod' not in st.session_state):
+    st.session_state.pivotlod = pivotlod
+if('pivotsentiment'):
+    st.session_state.pivotsentiment = pivotsentiment
+if('pivotsentimentlod'):
+    st.session_state.pivotsentimentlod = pivotsentimentlod
+if('movies' not in st.session_state):
+    st.session_state.movies = movies
 col1,col2 = st.columns(2)
 col1.subheader("Dataset des Evaluations")
 col2.subheader("Dataset des Items")
@@ -52,6 +66,3 @@ with col2:
         path = upload2.name
         file = pd.read_csv(path,delimiter=";",infer_datetime_format=True)
         st.write(file)
-    
-
-
