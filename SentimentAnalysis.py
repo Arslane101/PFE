@@ -121,21 +121,7 @@ def build_model(bert_layer, max_len=512):
 
 
 
-ratings = pd.read_csv("normalizedsentimentratings.csv",delimiter=";")   
-ratings = ratings[ratings["review_score"]!=int(4000)]
-ratings_1 = ratings[ratings["review_score"]==int(1)]
-ratings_1 = ratings_1.sample(2000)
-ratings_2 = ratings[ratings["review_score"]==int(2)]
-ratings_2 = ratings_2.sample(2000)
-ratings_3 = ratings[ratings["review_score"]==int(3)]
-ratings_3 = ratings_3.sample(2000)
-ratings_4 = ratings[ratings["review_score"]==int(4)]
-ratings_4 = ratings_4.sample(2000)
-ratings_5 = ratings[ratings["review_score"]==int(5)]
-ratings_5 = ratings_5.sample(2000)
-balanced_ratings = pd.concat([ratings_1,ratings_2,ratings_3,ratings_4,ratings_5])
-balanced_ratings = balanced_ratings.sample(frac=1)
-balanced_ratings = balanced_ratings.reset_index()
+balanced_ratings = pd.read_csv("normalizedsentimentratings.csv",delimiter=";")   
 balanced_ratings['review_content'] = balanced_ratings["review_content"].apply(lambda x:
 utils_preprocess_text(x,flg_stemm=False,flg_lemm=True,lst_stopwords=lst_stopwords))
 balanced_ratings['review_content']= balanced_ratings["review_content"].apply(
