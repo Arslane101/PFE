@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+import datetime
 import itertools
 from unittest import result
 import numpy as np
@@ -7,49 +8,187 @@ import streamlit as st
 from keras.models import load_model
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+def ListRelevant(matrix,n_items,ind):
+    relevants = []
+    for i in range(n_items):
+        if(matrix.iloc[ind,i]==1):
+            relevants.append(i)
+    return relevants   
+def ListSpecRel(array):
+    relevants = []
+    for i in range(len(array)):
+        if(array[i]==1):
+            relevants.append(list_movies[i])
+    return relevants 
+def Relevant(matrix):
+    relevants = []
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            if(matrix.iloc[i,j]==1) and j not in relevants:
+              relevants.append(j)
+    return relevants   
+def MostRelevantMoviesbyContext(ratings):
+    currentdate = datetime.now()
+    popularmovies = MostRatedMovies(ratings)
+    currentday = currentdate.strftime("%A")
+    weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+    weekend = ["Saturday","Sunday"]
+    listmovies = list()
+    if(currentday in weekdays):
+        for i in range(ratings.shape[0]):
+          if pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekdays and ratings['rating'][i]>=3:
+            if(ratings['movieId'][i] in popularmovies and ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    else : 
+        for i in range(ratings.shape[0]):
+          if pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekend and ratings['rating'][i]>=3:
+            if(ratings['movieId'][i] in popularmovies and ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    return listmovies
+def MostRatedMovies(ratings):
+    ratings = ratings.groupby(['movieId'])[['rating']].mean()
+    ratings = ratings[ratings["rating"] >= 3]
+    return ratings.index.unique().tolist()
+@st.experimental_memo
+def Hybrid(subsets,mode,alpha,nb,pivot,ratings):
 
-def Traitement():
-  return nullcontext
-def Hybrid(alpha):
-    cbresults = st.session_state['cbresults']
-    cfresults = st.session_state['resultcf']
+    cbresults = contentbased(list_users[nb],movies,ratings)
+    cfresults = EnsembleSamples(subsets,mode,nb,pivot)
     cbresults = cbresults.sort_values(by=['movieId'])
     cbresults = cbresults.reset_index()
     cbresults['similarity'] = cbresults['similarity'].apply(lambda x:  x/int(round(cbresults['similarity'].sum())))
     cfresults = cfresults.sort_values(by=['movieId'])
     cfresults = cfresults.reset_index()
     cfresults['probability']= cfresults['probability'].apply(lambda x:  x/int(round(cfresults['probability'].sum())))
+    hybrid = pd.DataFrame(columns=['movieId','probability'])
+    for i in range(cfresults.shape[0]):
+        x = alpha*cfresults['probability'][i]+(1-alpha)*cbresults['similarity'][i]
+        hybrid.loc[len(hybrid.index)]=[cfresults['movieId'][i],x]
+    return hybrid
+def FilterContext2(results,movies):
+    result = list()
+    for i in range(results.shape[0]):
+        if(results['movieId'][i] in movies):
+            result.append(results['movieId'][i])
+    return result
+def Evaluations():
+  lod = st.session_state["lod1"]
+  sentiment =st.session_state["sentiment1"]
+  context =  st.session_state["context1"]
+  alpha = st.session_state["alpha"]
+  nb = st.session_state['select1']
+  nb = int(nb)-1
+  if(lod==True and sentiment==True):
+      results = Hybrid("LOD/Subsets.txt","SentimentsLOD/",alpha,nb,pivotsentimentlod,clsentimentlodratings)
+      if(context):
+        context = MostRelevantMoviesbyContext(clsentimentlodratings)
+        results = FilterContext2(results,context)
+  elif(lod==True and  sentiment==False): 
+     results = Hybrid("LOD/Subsets.txt","LOD/",alpha,nb,pivotlod,cllodratings)
+     if(context):
+        context = MostRelevantMoviesbyContext(cllodratings)
+        results =FilterContext2(results,context)
+  elif(sentiment==True and lod==False):
+        results = Hybrid("Classic/Subsets.txt","Sentiments/",alpha,nb,pivotsentiment,clsentimentratings)
+        if(context):
+         context = MostRelevantMoviesbyContext(clsentimentratings)
+         results =FilterContext2(results,context)
+  else : 
+    results = Hybrid("Classic/Subsets.txt","Classic/",alpha,nb,pivot,clratings)
+    if(context):
+        context = MostRelevantMoviesbyContext(clratings)
+        results = FilterContext2(results,context)
+  return results
+@st.experimental_memo
+def EnsembleSamples(subsets,mode,nb,pivot):
+    itemslist = np.loadtxt(subsets)
+    itemlist = np.concatenate(itemslist)
+    values = list()
+    for i in range(itemslist.shape[0]):
+        model = load_model(mode+str(i))
+        testUser = np.array(pivot.iloc[nb,:],copy=True)
+        testUser = testUser.reshape(1,testUser.shape[0])
+        results = model.predict(testUser)
+        values.append(results)
+    results = np.concatenate(np.asarray(values))
+    results = results.reshape(itemlist.shape[0])
+    result = pd.DataFrame(columns=['movieId','probability'])
+    for i in range(results.shape[0]):
+        result.loc[len(result.index)]=[list_movies[int(itemlist[i])],results[i]]
+    return result
+@st.experimental_memo
+def contentbased(user,movies,ratings):
+    movies.dropna(subset=['movie_info'], inplace=True)
+    movies = movies.reset_index()
+    allmovies = ratings.movieId.unique()
+    allmovies = list(set(allmovies)-set(movies.rotten_tomatoes_link))
+    tf = TfidfVectorizer(stop_words='english')
+    tfidf_matrix_item = tf.fit_transform(movies['movie_info'])
+    userRate = ratings[ratings['userId'] == user ]
+    print(user)
+    userM = movies[movies['rotten_tomatoes_link'].isin(userRate['movieId'])]            
+    featureMat = pd.DataFrame(tfidf_matrix_item.todense(),
+                                    columns=tf.get_feature_names_out(),
+                                    index=movies.rotten_tomatoes_link)
+    featureMatU = featureMat[featureMat.index.isin(userM['rotten_tomatoes_link'])]
+    featureMatU = (pd.DataFrame((featureMatU.mean()),
+                                    columns=['similarity'])).transpose()       
+    cosine_sim = cosine_similarity(featureMatU, tfidf_matrix_item)
+    cosine_sim_df = pd.DataFrame(columns=['movieId','similarity'])
+    cosine_sim = cosine_sim.T
+    for i in range(cosine_sim.shape[0]):
+            cosine_sim_df.loc[len(cosine_sim_df.index)]= [movies['rotten_tomatoes_link'][i],cosine_sim[i][0]]
+    for movie in allmovies:
+        cosine_sim_df.loc[len(cosine_sim_df.index)]= [movie,0]
+    return cosine_sim_df
 
 def MovieList():
-    num = st.session_state['numrec2']
-    result,results = Evaluations()
-    temp = results[:num]
-    movieslist = list()
-    for i in temp:
-      movieslist.append(movies[movies['rotten_tomatoes_link']==list_movies[i]]['movie_title'].unique())
+    if(st.session_state['context1'] == True):
+      num = st.session_state['numrec5']
+      results = Evaluations()
+      temp = results[:num]
+      movieslist = list()
+      for i in temp:
+       movieslist.append(i)
+    else : 
+      num = st.session_state['numrec5']
+      results = Evaluations().movieId.unique()
+      temp = results[:num]
+      movieslist = list()
+      for i in temp:
+       movieslist.append(i)
+
+
     return movieslist
 def PlotsColab():
-    lod = st.session_state["lod"]
-    sentiment =st.session_state["sentiment"]
-    result,results = Evaluations()
+    lod = st.session_state["lod1"]
+    sentiment =st.session_state["sentiment1"]
+    results = Evaluations()
+    results = results.sort_values(by=['probability'],ascending=False)
+    results = results.reset_index()
     n=96
     i=1
     recalls = []
     precisions = []
     if(lod==True and sentiment==True):
-      rev = ListRelevant(pivotsentimentlod,pivotsentimentlod.shape[1],int(st.session_state['select'])-1)
+      testUser = np.array(pivotsentimentlod.iloc[int(st.session_state['select1'])-1,:],copy=True)
+      rev = ListSpecRel(testUser)
     elif(lod==True and  sentiment==False):
-      rev = ListRelevant(pivotlod,pivotlod.shape[1],int(st.session_state['select'])-1)
+      testUser = np.array(pivotlod.iloc[int(st.session_state['select1'])-1,:],copy=True)
+      rev = ListSpecRel(testUser)
     elif(sentiment==True and lod==False):
-      rev = ListRelevant(pivotsentiment,pivotsentiment.shape[1],int(st.session_state['select'])-1)
-    else : rev = ListRelevant(pivot,pivot.shape[1],int(st.session_state['select'])-1)  
+      testUser = np.array(pivotsentiment.iloc[int(st.session_state['select1'])-1,:],copy=True)
+      rev = ListSpecRel(testUser)
+    else : 
+      testUser = np.array(pivot.iloc[int(st.session_state['select1'])-1,:],copy=True)
+      rev = ListSpecRel(testUser)
     while(i<n):
       rec = 0
       prec = 0
       hr=0
-      temp = results[:i]
+      temp = results.loc[0:i-1,:]
       for k in range(len(temp)):
-        if  temp[k] in rev:
+        if  temp['movieId'][k] in rev:
          hr+=1
       prec =  (hr)/i
       if(len(rev)!=0):
@@ -60,15 +199,39 @@ def PlotsColab():
       recalls.append(rec)
     mesures = np.column_stack((precisions,recalls))       
     return result,mesures,len(rev) 
+st.set_page_config(
+    page_title="Filtrage Hybride",
+    page_icon="👋",
+    layout="wide",
+)
+pivot = st.session_state["pivot"]
+pivotlod = st.session_state["pivotlod"]
+pivotsentiment = st.session_state["pivotsentiment"]
+pivotsentimentlod = st.session_state["pivotsentimentlod"]
+ratings = st.session_state["ratings"]
+pivotsentiment = st.session_state["pivotsentiment"]
+sentimentratings = st.session_state["sentimentratings"]
+movies = st.session_state["movies"]
 
-number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select',value=1)
-numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec2',on_change=MovieList,value=1)
-Hybrid(0)
-"""movie = MovieList()
+cllodratings = st.session_state["cllodratings"]
+clsentimentlodratings = st.session_state["clsentimentlodratings"]
+clsentimentratings =  st.session_state["clsentimentratings"]
+clratings =  st.session_state["clratings"]
+ 
+list_users = pivot.index.unique()
+list_movies = pivot.columns.unique()
+st.sidebar.write("Paramètres Filtrage Hybride")
+lod = st.sidebar.checkbox('Linked Open Data',key='lod1')
+context = st.sidebar.checkbox('Informations Contextuelles',key='context1')
+sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment1')
+st.sidebar.number_input("Alpha",0.2,1.0,step=0.1,key='alpha')
+number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select1',value=1)
+numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec5',on_change=MovieList,value=1)
+movie = MovieList()
 for i in movie:
   st.text(i)
 Results = PlotsColab()
-if(Results[1]!=0):
-  results = pd.DataFrame(Results[0],columns=['Précision','Rappel'])
+if(Results[2]!=0):
+  results = pd.DataFrame(Results[1],columns=['Précision','Rappel'])
   st.line_chart(data=results)
-else: st.write("Cet utilisateur n'a aucun film pertinent")"""
+else: st.write("Cet utilisateur n'a aucun film pertinent")

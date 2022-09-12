@@ -18,8 +18,8 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from yaml import load
-
-from ContentBased import contentbased
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 """Chargement du Dataset (le préfiltrage se fera dans cette partie) et Transformation en relevant et non-relevant"""
     
 def ChargerDataset(ratings,th):
@@ -141,7 +141,7 @@ def EnsembleSamplesTesting(nb):
     itemlist = np.concatenate(itemslist)
     values = list()
     for i in range(itemslist.shape[0]):
-        model = load_model("Sentiments/"+str(i))
+        model = load_model("Classic/"+str(i))
         testUser = np.array(pivot.iloc[nb,:],copy=True)
         testUser = testUser.reshape(1,testUser.shape[0])
         results = model.predict(testUser)
@@ -198,11 +198,11 @@ def FilterContext(results,movies):
             result.append(elt)
     return result
 def EnsembleSamples(nb):
-    itemslist = np.loadtxt("Classic/Subsets.txt")
+    itemslist = np.loadtxt("LOD/Subsets.txt")
     itemlist = np.concatenate(itemslist)
     values = list()
     for i in range(itemslist.shape[0]):
-        model = load_model("Classic/"+str(i))
+        model = load_model("SentimentsLOD/"+str(i))
         testUser = np.array(pivot.iloc[nb,:],copy=True)
         testUser = testUser.reshape(1,testUser.shape[0])
         results = model.predict(testUser)
@@ -213,15 +213,41 @@ def EnsembleSamples(nb):
     for i in range(results.shape[0]):
         result.loc[len(result.index)]=[list_movies[int(itemlist[i])],results[i]]
     return result
-
+def contentbased(user,movies,ratings):
+    allmovies = ratings.movieId.unique()
+    allmovies = list(set(allmovies)-set(movies.rotten_tomatoes_link))
+    tf = TfidfVectorizer(stop_words='english')
+    tfidf_matrix_item = tf.fit_transform(movies['movie_info'])
+    userRate = ratings[ratings['userId'] == user ]
+    relRating = userRate[userRate['rating'] == 1]
+    userM = movies[movies['rotten_tomatoes_link'].isin(userRate['movieId'])]            
+    featureMat = pd.DataFrame(tfidf_matrix_item.todense(),
+                                    columns=tf.get_feature_names_out(),
+                                    index=movies.rotten_tomatoes_link)
+    featureMatU = featureMat[featureMat.index.isin(userM['rotten_tomatoes_link'])]
+    featureMatU = (pd.DataFrame((featureMatU.mean()),
+                                    columns=['similarity'])).transpose()       
+    cosine_sim = cosine_similarity(featureMatU, tfidf_matrix_item)
+    cosine_sim_df = pd.DataFrame(columns=['movieId','similarity'])
+    cosine_sim = cosine_sim.T
+    for i in range(cosine_sim.shape[0]):
+            cosine_sim_df.loc[len(cosine_sim_df.index)]= [movies['rotten_tomatoes_link'][i],cosine_sim[i][0]]
+    for movie in allmovies:
+        cosine_sim_df.loc[len(cosine_sim_df.index)]= [movie,0]
+    return relRating.movieId.unique(),cosine_sim_df
 """Création des inputs et targets du RDN"""
-ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ratings = pd.read_csv("SentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ratings2 = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
 movies = pd.read_csv('movies.csv', delimiter=';')
-pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+movies.dropna(subset=['movie_info'], inplace=True)
+movies = movies.reset_index()
+pivot = ratings2.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique().tolist()
+context = MostRelevantMoviesbyContext(ratings)
+print(len(context))
 print(n_users)
 print(n_items)
 def Hybrid(alpha,nb):
@@ -238,7 +264,12 @@ def Hybrid(alpha,nb):
         x = alpha*cfresults['probability'][i]+(1-alpha)*cbresults['similarity'][i]
         hybrid.loc[len(hybrid.index)]=[cfresults['movieId'][i],x]
     return hybrid
-
+def FilterContext2(results,movies):
+    result = list()
+    for i in range(results.shape[0]):
+        if(results['movieId'][i] in movies):
+            result.append(results['movieId'][i])
+    return result
 
 """
 context = MostRelevantMoviesbyContext(ratings)
@@ -268,13 +299,12 @@ if(len(testusers)>0):
     testusers = random.sample(testusers,25)
 """
 
-
 j=0
 n=96
 totalprec = list()
 totalrec = list()
 totalf = list()
-for j in range(2050):
+for j in range(50):
  recalls = list()
  precisions = list()
  recalls.append(j)
@@ -282,17 +312,19 @@ for j in range(2050):
  i=1 
  testUser = np.array(pivot.iloc[j,:],copy=True)
  rev  = ListSpecRel(testUser)
- if(len(rev)!=0):
-  results = Hybrid(0.2,j)
+ if(len(rev)>1):
+  print(j)
+  results = Hybrid(0.8,j)
   results = results.sort_values(by=['probability'],ascending=False)
   results = results.reset_index()
+  results = FilterContext2(results,context)
   recalls.append(len(rev))
   precisions.append(len(rev))    
   while(i<n):   
     hr=0
-    temp = results.loc[0:i-1,:] 
+    temp = results[:i] 
     for k in range(len(temp)):
-         if  temp['movieId'][k] in rev:
+         if  temp[k] in rev:
           hr+=1
     prec = (hr)/i
     rec =  (hr)/len(rev) 

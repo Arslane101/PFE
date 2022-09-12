@@ -23,17 +23,25 @@ def LoadData():
   pivotsentiment = sentimentratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   pivotlod = lodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   pivotsentimentlod = sentimentlodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-  return ratings,sentimentratings,pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies
+  return ratings,sentimentratings,lodratings,sentimentlodratings,pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies
+@st.experimental_memo
+def ClassicData():
+  ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'])
+  sentimentratings = pd.read_csv("SentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
+  lodratings =  pd.read_csv("lodratings.csv",delimiter=";",parse_dates=['review_date'])
+  sentimentlodratings =  pd.read_csv("SentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
+  return ratings,sentimentratings,lodratings,sentimentlodratings
 st.set_page_config(
     page_title="Comparaison des Différentes Approches",
     page_icon="👋",
     layout="wide",
 )
-ratings,sentimentratings,pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies = LoadData()
+ratings,sentimentratings,lodratings,sentimentlodratings,pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies = LoadData()
+clratings,clsentimentratings,cllodratings,clsentimentlodratings = ClassicData()
 if('ratings' not in st.session_state):
-    st.session_state.ratings = ratings
+    st.session_state["ratings"] = ratings
 if('sentimentratings' not in st.session_state):
-    st.session_state.sentimentratings = sentimentratings
+    st.session_state["sentimentratings"] = sentimentratings
 if('pivot' not in st.session_state):
     st.session_state.pivot = pivot
 if('pivotlod' not in st.session_state):
@@ -44,6 +52,19 @@ if('pivotsentimentlod'):
     st.session_state.pivotsentimentlod = pivotsentimentlod
 if('movies' not in st.session_state):
     st.session_state.movies = movies
+if('clratings' not in st.session_state):
+    st.session_state.clratings = clratings 
+if('clsentimentratings' not in st.session_state):
+    st.session_state.clsentimentratings = clsentimentratings
+if('clsentimentlodratings' not in st.session_state):
+    st.session_state.clsentimentlodratings = clsentimentlodratings
+if('cllodratings' not in st.session_state):
+    st.session_state.cllodratings = cllodratings
+if('sentimentlodratings' not in st.session_state):
+    st.session_state.sentimentlodratings = sentimentlodratings
+if('lodratings' not in st.session_state):
+    st.session_state.lodratings = lodratings
+print(st.session_state.keys)
 col1,col2 = st.columns(2)
 col1.subheader("Dataset des Evaluations")
 col2.subheader("Dataset des Items")

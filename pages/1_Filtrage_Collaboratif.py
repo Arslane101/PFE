@@ -118,7 +118,7 @@ def PlotsColab():
     return result,mesures,len(rev)
 
 st.set_page_config(
-    page_title="Comparaison des Différentes Approches",
+    page_title="Filtrage Collaboratif",
     page_icon="👋",
     layout="wide",
 )

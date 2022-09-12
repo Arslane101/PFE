@@ -87,7 +87,7 @@ def PlotsCB():
     return copyresults,mesures,len(rev)
 
 st.set_page_config(
-    page_title="Comparaison des Différentes Approches",
+    page_title="Filtrage basé Contenu",
     page_icon="👋",
     layout="wide",
 )
