@@ -1,0 +1,15 @@
+bert==2.2.0
+bert_tensorflow==1.0.4
+keras==2.9.0
+matplotlib==3.4.3
+nltk==3.7
+numpy==1.22.4
+pandas==1.4.1
+PyYAML==6.0
+scikit_learn==1.1.2
+seaborn==0.11.2
+streamlit==1.12.2
+tensorflow==2.10.0
+tensorflow_gpu==2.9.1
+tensorflow_hub==0.12.0
+transformers==4.21.1
