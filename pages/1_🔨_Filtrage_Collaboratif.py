@@ -113,7 +113,7 @@ def MovieList():
     temp = results[:num]
     movieslist = list()
     for i in temp:
-      movieslist.append(list_movies[i])
+      movieslist.append(movies[movies['rotten_tomatoes_link']==list_movies[i]].movie_title.values)
     return movieslist
 def PlotsColab():
     lod = st.session_state["lod"]

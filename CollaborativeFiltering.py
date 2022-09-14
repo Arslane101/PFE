@@ -266,10 +266,11 @@ n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique().tolist()
 context = MostRelevantMoviesbyContext(ratings)
+#MitigateColdStart()
+subsets = RandomSubsets(n_items,1)
+np.savetxt("Subsets.txt",np.array(subsets).astype(int),fmt='%d')
 
-
-
-j=0
+"""j=0
 n=96
 totalprec = list()
 totalrec = list()
@@ -306,3 +307,4 @@ for j in range(50):
   totalrec.append(np.asarray(recalls))
 np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
 np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
+"""

@@ -147,11 +147,11 @@ def MovieList():
     results = results.movieId.unique()
     temp = results[:num]
     for i in temp:
-     movieslist.append(i)
+     movieslist.append(movies[movies['rotten_tomatoes_link']==i]['movie_title'].values)
   else : 
     temp = results[:num]
     for i in temp:
-     movieslist.append(i)
+     movieslist.append(movies[movies['rotten_tomatoes_link']==i]['movie_title'].values)
   return movieslist,results,mesures,length
 
 def PlotHybrid():
