@@ -216,7 +216,7 @@ def PlotHybrid():
 
 st.set_page_config(
     page_title="Filtrage Hybride",
-    page_icon="👋",
+    page_icon="Hybrid.png",
     layout="wide",
 )
 pivot = st.session_state["pivot"]

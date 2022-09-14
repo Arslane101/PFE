@@ -150,7 +150,7 @@ def PlotsColab():
 
 st.set_page_config(
     page_title="Filtrage Collaboratif",
-    page_icon="👋",
+    page_icon="collaboration.png",
     layout="wide",
 )
 st.sidebar.write("Paramètres Filtrage Collaboratif")

@@ -235,21 +235,6 @@ def contentbased(user,movies,ratings):
     for movie in allmovies:
         cosine_sim_df.loc[len(cosine_sim_df.index)]= [movie,0]
     return relRating.movieId.unique(),cosine_sim_df
-"""Création des inputs et targets du RDN"""
-ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
-ratings2 = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
-movies = pd.read_csv('movies.csv', delimiter=';')
-movies.dropna(subset=['movie_info'], inplace=True)
-movies = movies.reset_index()
-pivot = ratings2.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
-n_users = pivot.index.unique().shape[0]
-n_items = pivot.columns.unique().shape[0]
-list_movies = pivot.columns.unique().tolist()
-list_users = pivot.index.unique().tolist()
-context = MostRelevantMoviesbyContext(ratings)
-print(len(context))
-print(n_users)
-print(n_items)
 def Hybrid(alpha,nb):
     cbresults = contentbased(list_users[nb],movies,ratings)[1]
     cfresults = EnsembleSamples(nb)
@@ -271,33 +256,18 @@ def FilterContext2(results,movies):
             result.append(results['movieId'][i])
     return result
 
-"""
+"""Création des inputs et targets du RDN"""
+ratings = pd.read_csv("subratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ChargerDataset()
+movies = pd.read_csv('movies.csv', delimiter=';')
+pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
+n_users = pivot.index.unique().shape[0]
+n_items = pivot.columns.unique().shape[0]
+list_movies = pivot.columns.unique().tolist()
+list_users = pivot.index.unique().tolist()
 context = MostRelevantMoviesbyContext(ratings)
-print(len(context))
-
-popularmovies = pd.read_csv("popularmovies.csv",delimiter=";")
-titles = list(set(popularmovies.movieId.unique()) & set(ratings.movieId.unique()))
-MitigateColdStart()
 
 
-movies = pd.read_csv("movies.csv",delimiter=";")
-ratings = pd.merge(ratings,movies,on='movieId')
-ChargerDataset(ratings,4)
-ratings.to_csv("binarizedratings.csv")
-
-relevanttotal = Relevant(pivot)
-testmovies = random.sample(relevanttotal,80)
-testusers = list()
-i=0
-while i <pivot.shape[0]:
-    relevants = ListRelevant(pivot,pivot.shape[1],i)
-    if(len(relevants)>20):
-      if(len(set(relevants).intersection(testmovies))>0 ):
-        testusers.append(i)
-    i+=1
-if(len(testusers)>0):
-    testusers = random.sample(testusers,25)
-"""
 
 j=0
 n=96

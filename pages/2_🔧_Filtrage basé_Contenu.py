@@ -172,7 +172,7 @@ def PlotCB():
 
 st.set_page_config(
     page_title="Filtrage basé Contenu",
-    page_icon="👋",
+    page_icon="content.png",
     layout="wide",
 )
 st.sidebar.write("Paramètres Filtrage basé Contenu")
