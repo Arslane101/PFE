@@ -1,13 +1,11 @@
 
-import itertools
-from unittest import result
 import numpy as np
 import pandas as pd
 import streamlit as st
+import keras
 from keras.models import load_model
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
 
 def ListRelevant(matrix,n_items,ind):
     relevants = []

@@ -1,7 +1,6 @@
 import calendar
 from datetime import datetime
-import itertools
-from msilib.schema import EventMapping
+import keras
 from unittest import result
 import numpy as np
 import pandas as pd
