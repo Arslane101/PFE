@@ -75,30 +75,30 @@ def FilterContext2(results,movies):
             result.append(results['movieId'][i])
     return result
 def Evaluations():
-  lod = st.session_state["lod1"]
-  sentiment =st.session_state["sentiment1"]
-  context1 =  st.session_state["context1"]
+  lod = st.session_state["lod2"]
+  sentiment =st.session_state["sentiment2"]
+  context2 =  st.session_state["context2"]
   alpha = st.session_state["alpha"]
-  nb = st.session_state['select1']
+  nb = st.session_state['select2']
   nb = int(nb)-1
   if(lod==True and sentiment==True):
       results = Hybrid("LOD/Subsets.txt","SentimentsLOD/",alpha,nb,pivotsentimentlod,sentimentlodratings)
-      if(context1 == True):
+      if(context2 == True):
         context = MostRelevantMoviesbyContext(clsentimentlodratings)
         results = FilterContext2(results,context)
   elif(lod==True and  sentiment==False): 
      results = Hybrid("LOD/Subsets.txt","LOD/",alpha,nb,pivotlod,lodratings)
-     if(context1 == True):
+     if(context2 == True):
         context = MostRelevantMoviesbyContext(cllodratings)
         results =FilterContext2(results,context)
   elif(sentiment==True and lod==False):
         results = Hybrid("Classic/Subsets.txt","Sentiments/",alpha,nb,pivotsentiment,sentimentratings)
-        if(context1 == True):
+        if(context2 == True):
          context = MostRelevantMoviesbyContext(clsentimentratings)
          results =FilterContext2(results,context)
   else : 
     results = Hybrid("Classic/Subsets.txt","Classic/",alpha,nb,pivot,ratings)
-    if(context1 == True):
+    if(context2 == True):
         context = MostRelevantMoviesbyContext(clratings)
         results = FilterContext2(results,context)
   return results
@@ -146,7 +146,7 @@ def MovieList():
   results= PlotHybrid()[0]
   movieslist = list()
   num = st.session_state['numrec5']
-  if(st.session_state['context1']==False):
+  if(st.session_state['context2']==False):
     results = results.movieId.unique()
     temp = results[:num]
     for i in temp:
@@ -159,26 +159,26 @@ def MovieList():
 
 
 def PlotHybrid():
-  lod = st.session_state["lod1"]
-  sentiment =st.session_state["sentiment1"]
+  lod = st.session_state["lod2"]
+  sentiment =st.session_state["sentiment2"]
   n=96
   i=1
   recalls = []
   precisions = []
   results = Evaluations() 
   if(lod==True and sentiment==True):
-    testUser = np.array(pivotsentimentlod.iloc[int(st.session_state['select1'])-1,:],copy=True)
+    testUser = np.array(pivotsentimentlod.iloc[int(st.session_state['select2'])-1,:],copy=True)
     rev = ListSpecRel(testUser)
   elif(lod==True and  sentiment==False):
-    testUser = np.array(pivotlod.iloc[int(st.session_state['select1'])-1,:],copy=True)
+    testUser = np.array(pivotlod.iloc[int(st.session_state['select2'])-1,:],copy=True)
     rev = ListSpecRel(testUser)
   elif(sentiment==True and lod==False):
-    testUser = np.array(pivotsentiment.iloc[int(st.session_state['select1'])-1,:],copy=True)
+    testUser = np.array(pivotsentiment.iloc[int(st.session_state['select2'])-1,:],copy=True)
     rev = ListSpecRel(testUser)
   else : 
-    testUser = np.array(pivot.iloc[int(st.session_state['select1'])-1,:],copy=True)
+    testUser = np.array(pivot.iloc[int(st.session_state['select2'])-1,:],copy=True)
     rev = ListSpecRel(testUser)
-  if(st.session_state["context1"] == True):
+  if(st.session_state["context2"] == True):
     
     i=1
     while(i<n):
@@ -241,11 +241,11 @@ clratings =  st.session_state["clratings"]
 list_users = pivot.index.unique()
 list_movies = pivot.columns.unique()
 st.sidebar.write("Paramètres Filtrage Hybride")
-lod = st.sidebar.checkbox('Linked Open Data',key='lod1')
-context = st.sidebar.checkbox('Informations Contextuelles',key='context1')
-sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment1')
+lod = st.sidebar.checkbox('Linked Open Data',key='lod2')
+context = st.sidebar.checkbox('Informations Contextuelles',key='context2')
+sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment2')
 alpha = st.sidebar.number_input("Alpha",0.2,1.0,step=0.1,key='alpha')
-number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select1',value=1)
+number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select2',value=1)
 numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec5',on_change=MovieList,value=1)
 Results = PlotHybrid()
 for i in MovieList():

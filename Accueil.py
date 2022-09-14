@@ -18,7 +18,7 @@ def LoadData():
   sentimentratings = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
   lodratings =  pd.read_csv("binarizedratingsLOD.csv",delimiter=";",parse_dates=['review_date'])
   sentimentlodratings =  pd.read_csv("BinarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
-  movies = pd.read_csv("movies.csv",delimiter=";")
+  movies = pd.read_csv("movies.csv",delimiter=";") 
   pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   pivotsentiment = sentimentratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   pivotlod = lodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
@@ -64,7 +64,6 @@ if('sentimentlodratings' not in st.session_state):
     st.session_state.sentimentlodratings = sentimentlodratings
 if('lodratings' not in st.session_state):
     st.session_state.lodratings = lodratings
-print(st.session_state.keys)
 col1,col2 = st.columns(2)
 col1.subheader("Dataset des Evaluations")
 col2.subheader("Dataset des Items")

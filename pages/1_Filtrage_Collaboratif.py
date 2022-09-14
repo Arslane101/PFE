@@ -1,4 +1,5 @@
-
+import calendar
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -6,7 +7,10 @@ import keras
 from keras.models import load_model
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
+def MostRatedMovies(ratings):
+    ratings = ratings.groupby(['movieId'])[['rating']].mean()
+    ratings = ratings[ratings["rating"] >= 3]
+    return ratings.index.unique().tolist()
 def ListRelevant(matrix,n_items,ind):
     relevants = []
     for i in range(n_items):
@@ -30,6 +34,7 @@ def where(arr,nb):
     for i in range(len(arr)):
         if(arr[i]==nb):
             return i
+@st.experimental_memo
 def ContextFiltering(results,movies):
     movie = list()
     for mov in movies:
@@ -48,19 +53,23 @@ def Evaluations():
   if(lod==True and sentiment==True):
       results = EnsembleSamplesTesting("LOD/Subsets.txt","SentimentsLOD/",nb,pivotsentimentlod)
       if(context):
-        results = ContextFiltering()
+        cont = MostRelevantMoviesbyContext(clsentimentlodratings)
+        results = ContextFiltering(results,cont)
   elif(lod==True and  sentiment==False): 
      results = EnsembleSamplesTesting("LOD/Subsets.txt","LOD/",nb,pivotlod)
      if(context):
-      results = ContextFiltering()
+        cont = MostRelevantMoviesbyContext(cllodratings)
+        results = ContextFiltering(results,cont)
   elif(sentiment==True and lod==False):
         results = EnsembleSamplesTesting("Classic/Subsets.txt","Sentiments/",nb,pivotsentiment)
         if(context):
-         results = ContextFiltering()
+         cont = MostRelevantMoviesbyContext(clsentimentratings)
+         results = ContextFiltering(results,cont)
   else : 
     results = EnsembleSamplesTesting("Classic/Subsets.txt","Classic/",nb,pivot)
     if(context):
-      results = ContextFiltering()
+        cont = MostRelevantMoviesbyContext(clratings)
+        results = ContextFiltering(results,cont)
   return results
 @st.experimental_memo
 def EnsembleSamplesTesting(subsets,mode,nb,pivot):
@@ -74,28 +83,42 @@ def EnsembleSamplesTesting(subsets,mode,nb,pivot):
          results = model.predict(testUser)
          values.append(results)
         results = np.concatenate(np.asarray(values))
-        copyresults = results.reshape(itemlist.shape[0])
-        result = pd.DataFrame(columns=['movieId','probability'])
-        for i in range(copyresults.shape[0]):
-         result.loc[len(result.index)]=[list_movies[int(itemlist[i])],copyresults[i]]
         results = np.argsort(results.reshape(itemlist.shape[0]))[::-1] 
         for i in range(results.shape[0]):
          results[i] = int(itemlist[results[i]]) 
         
-        return result,results
-   
+        return results
+@st.experimental_memo
+def MostRelevantMoviesbyContext(ratings):
+    currentdate = datetime.now()
+    popularmovies = MostRatedMovies(ratings)
+    currentday = currentdate.strftime("%A")
+    weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+    weekend = ["Saturday","Sunday"]
+    listmovies = list()
+    if(currentday in weekdays):
+        for i in range(ratings.shape[0]):
+          if pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekdays and ratings['rating'][i]>=3:
+            if(ratings['movieId'][i] in popularmovies and ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    else : 
+        for i in range(ratings.shape[0]):
+          if pd.isnull(ratings["review_date"][i]) == False and calendar.day_name[ratings["review_date"][i].weekday()] in weekend and ratings['rating'][i]>=3:
+            if(ratings['movieId'][i] in popularmovies and ratings['movieId'][i] not in listmovies):
+                listmovies.append(ratings['movieId'][i])
+    return listmovies 
 def MovieList():
     num = st.session_state['numrec2']
     results = Evaluations()
     temp = results[:num]
     movieslist = list()
     for i in temp:
-      movieslist.append(movies[movies['rotten_tomatoes_link']==list_movies[i]]['movie_title'].unique())
+      movieslist.append(list_movies[i])
     return movieslist
 def PlotsColab():
     lod = st.session_state["lod"]
     sentiment =st.session_state["sentiment"]
-    result,results = Evaluations()
+    results = Evaluations()
     n=96
     i=1
     recalls = []
@@ -123,7 +146,7 @@ def PlotsColab():
       precisions.append(prec)
       recalls.append(rec)
     mesures = np.column_stack((precisions,recalls))       
-    return result,mesures,len(rev)
+    return mesures,len(rev)
 
 st.set_page_config(
     page_title="Filtrage Collaboratif",
@@ -134,11 +157,20 @@ st.sidebar.write("Paramètres Filtrage Collaboratif")
 lod = st.sidebar.checkbox('Linked Open Data',key='lod')
 context = st.sidebar.checkbox('Informations Contextuelles',key='context')
 sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment')
-pivot = st.session_state.pivot
-pivotlod = st.session_state.pivotlod
-pivotsentiment = st.session_state.pivotsentiment
-pivotsentimentlod = st.session_state.pivotsentimentlod
-movies = st.session_state.movies
+pivot = st.session_state["pivot"]
+pivotlod = st.session_state["pivotlod"]
+pivotsentiment = st.session_state["pivotsentiment"]
+pivotsentimentlod = st.session_state["pivotsentimentlod"]
+ratings = st.session_state["ratings"]
+pivotsentiment = st.session_state["pivotsentiment"]
+sentimentratings = st.session_state["sentimentratings"]
+movies = st.session_state["movies"]
+lodratings = st.session_state["lodratings"]
+sentimentlodratings = st.session_state["sentimentlodratings"]
+cllodratings = st.session_state["cllodratings"]
+clsentimentlodratings = st.session_state["clsentimentlodratings"]
+clsentimentratings =  st.session_state["clsentimentratings"]
+clratings =  st.session_state["clratings"]
  
 list_users = pivot.index.unique()
 list_movies = pivot.columns.unique()
@@ -149,9 +181,7 @@ movie = MovieList()
 for i in movie:
   st.text(i)
 Results = PlotsColab()
-if('resultcf' not in st.session_state):
-  st.session_state['resultcf']=Results[0]
-if(Results[2]!=0):
-  results = pd.DataFrame(Results[1],columns=['Précision','Rappel'])
+if(Results[1]!=0):
+  results = pd.DataFrame(Results[0],columns=['Précision','Rappel'])
   st.line_chart(data=results)
 else: st.write("Cet utilisateur n'a aucun film pertinent")
