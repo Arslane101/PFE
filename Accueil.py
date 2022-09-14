@@ -18,7 +18,7 @@ def LoadData():
   sentimentratings = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
   lodratings =  pd.read_csv("binarizedratingsLOD.csv",delimiter=";",parse_dates=['review_date'])
   sentimentlodratings =  pd.read_csv("BinarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
-  movies = pd.read_csv("movies.csv",delimiter=";") 
+  movies = pd.read_csv("films.csv",delimiter=";") 
   pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   pivotsentiment = sentimentratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   pivotlod = lodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)

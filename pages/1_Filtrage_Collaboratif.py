@@ -9,7 +9,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 def MostRatedMovies(ratings):
     ratings = ratings.groupby(['movieId'])[['rating']].mean()
-    ratings = ratings[ratings["rating"] >= 3]
+    ratings = ratings[ratings["rating"] >= 4]
     return ratings.index.unique().tolist()
 def ListRelevant(matrix,n_items,ind):
     relevants = []

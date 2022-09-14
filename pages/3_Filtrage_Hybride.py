@@ -48,21 +48,19 @@ def MostRelevantMoviesbyContext(ratings):
     return listmovies
 def MostRatedMovies(ratings):
     ratings = ratings.groupby(['movieId'])[['rating']].mean()
-    ratings = ratings[ratings["rating"] >= 3]
+    ratings = ratings[ratings["rating"] >= 4]
     return ratings.index.unique().tolist()
-@st.experimental_memo
+@st.experimental_memo   
 def Hybrid(subsets,mode,alpha,nb,pivot,ratings):
     cbresults = contentbased(list_users[nb],movies,ratings)
     cfresults = EnsembleSamples(subsets,mode,nb,pivot)
     cbresults = cbresults.sort_values(by=['movieId'])
     cbresults = cbresults.reset_index()
-    cbresults['similarity'] = cbresults['similarity'].apply(lambda x:  x/int(round(cbresults['similarity'].sum())))
     cfresults = cfresults.sort_values(by=['movieId'])
     cfresults = cfresults.reset_index()
-    cfresults['probability']= cfresults['probability'].apply(lambda x:  x/int(round(cfresults['probability'].sum())))
     hybrid = pd.DataFrame(columns=['movieId','probability'])
     for i in range(cfresults.shape[0]):
-        x = alpha*cfresults['probability'][i]+(1-alpha)*cbresults['similarity'][i]
+        x = alpha*cfresults['probability'][i]+(1.0-alpha)*cbresults['similarity'][i]
         hybrid.loc[len(hybrid.index)]=[cfresults['movieId'][i],x]
     return hybrid
 @st.experimental_memo
@@ -126,8 +124,7 @@ def contentbased(user,movies,ratings):
     tf = TfidfVectorizer(stop_words='english')
     tfidf_matrix_item = tf.fit_transform(movies['movie_info'])
     userRate = ratings[ratings['userId'] == user ]
-    print(user)
-    userM = movies[movies['rotten_tomatoes_link'].isin(userRate['movieId'])]            
+    userM = movies[movies['rotten_tomatoes_link'].isin(userRate['movieId'])]      
     featureMat = pd.DataFrame(tfidf_matrix_item.todense(),
                                     columns=tf.get_feature_names_out(),
                                     index=movies.rotten_tomatoes_link)
@@ -143,7 +140,7 @@ def contentbased(user,movies,ratings):
         cosine_sim_df.loc[len(cosine_sim_df.index)]= [movie,0]
     return cosine_sim_df
 def MovieList():
-  results= PlotHybrid()[0]
+  results,mesures,length= PlotHybrid()
   movieslist = list()
   num = st.session_state['numrec5']
   if(st.session_state['context2']==False):
@@ -155,8 +152,7 @@ def MovieList():
     temp = results[:num]
     for i in temp:
      movieslist.append(i)
-  return movieslist
-
+  return movieslist,results,mesures,length
 
 def PlotHybrid():
   lod = st.session_state["lod2"]
@@ -244,13 +240,13 @@ st.sidebar.write("Paramètres Filtrage Hybride")
 lod = st.sidebar.checkbox('Linked Open Data',key='lod2')
 context = st.sidebar.checkbox('Informations Contextuelles',key='context2')
 sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment2')
-alpha = st.sidebar.number_input("Alpha",0.2,1.0,step=0.1,key='alpha')
+alpha = st.sidebar.number_input("Alpha",0.0,1.0,step=0.1,value=0.2,key='alpha')
 number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select2',value=1)
 numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec5',on_change=MovieList,value=1)
-Results = PlotHybrid()
-for i in MovieList():
+movie,results,mesure,length = MovieList()
+for i in movie:
   st.text(i)
-if(Results[2]!=0):
-  results = pd.DataFrame(Results[1],columns=['Précision','Rappel'])
+if(length!=0):
+  results = pd.DataFrame(mesure,columns=['Précision','Rappel'])
   st.line_chart(data=results)
 else: st.write("Cet utilisateur n'a aucun film pertinent")
