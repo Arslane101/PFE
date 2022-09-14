@@ -1,6 +1,7 @@
-from contextlib import nullcontext
-import datetime
+import calendar
+from datetime import datetime
 import itertools
+from msilib.schema import EventMapping
 from unittest import result
 import numpy as np
 import pandas as pd
@@ -27,6 +28,7 @@ def Relevant(matrix):
             if(matrix.iloc[i,j]==1) and j not in relevants:
               relevants.append(j)
     return relevants   
+@st.experimental_memo
 def MostRelevantMoviesbyContext(ratings):
     currentdate = datetime.now()
     popularmovies = MostRatedMovies(ratings)
@@ -51,7 +53,6 @@ def MostRatedMovies(ratings):
     return ratings.index.unique().tolist()
 @st.experimental_memo
 def Hybrid(subsets,mode,alpha,nb,pivot,ratings):
-
     cbresults = contentbased(list_users[nb],movies,ratings)
     cfresults = EnsembleSamples(subsets,mode,nb,pivot)
     cbresults = cbresults.sort_values(by=['movieId'])
@@ -65,7 +66,10 @@ def Hybrid(subsets,mode,alpha,nb,pivot,ratings):
         x = alpha*cfresults['probability'][i]+(1-alpha)*cbresults['similarity'][i]
         hybrid.loc[len(hybrid.index)]=[cfresults['movieId'][i],x]
     return hybrid
+@st.experimental_memo
 def FilterContext2(results,movies):
+    results = results.sort_values(by=['probability'],ascending=False)
+    results = results.reset_index()
     result = list()
     for i in range(results.shape[0]):
         if(results['movieId'][i] in movies):
@@ -74,28 +78,28 @@ def FilterContext2(results,movies):
 def Evaluations():
   lod = st.session_state["lod1"]
   sentiment =st.session_state["sentiment1"]
-  context =  st.session_state["context1"]
+  context1 =  st.session_state["context1"]
   alpha = st.session_state["alpha"]
   nb = st.session_state['select1']
   nb = int(nb)-1
   if(lod==True and sentiment==True):
-      results = Hybrid("LOD/Subsets.txt","SentimentsLOD/",alpha,nb,pivotsentimentlod,clsentimentlodratings)
-      if(context):
+      results = Hybrid("LOD/Subsets.txt","SentimentsLOD/",alpha,nb,pivotsentimentlod,sentimentlodratings)
+      if(context1 == True):
         context = MostRelevantMoviesbyContext(clsentimentlodratings)
         results = FilterContext2(results,context)
   elif(lod==True and  sentiment==False): 
-     results = Hybrid("LOD/Subsets.txt","LOD/",alpha,nb,pivotlod,cllodratings)
-     if(context):
+     results = Hybrid("LOD/Subsets.txt","LOD/",alpha,nb,pivotlod,lodratings)
+     if(context1 == True):
         context = MostRelevantMoviesbyContext(cllodratings)
         results =FilterContext2(results,context)
   elif(sentiment==True and lod==False):
-        results = Hybrid("Classic/Subsets.txt","Sentiments/",alpha,nb,pivotsentiment,clsentimentratings)
-        if(context):
+        results = Hybrid("Classic/Subsets.txt","Sentiments/",alpha,nb,pivotsentiment,sentimentratings)
+        if(context1 == True):
          context = MostRelevantMoviesbyContext(clsentimentratings)
          results =FilterContext2(results,context)
   else : 
-    results = Hybrid("Classic/Subsets.txt","Classic/",alpha,nb,pivot,clratings)
-    if(context):
+    results = Hybrid("Classic/Subsets.txt","Classic/",alpha,nb,pivot,ratings)
+    if(context1 == True):
         context = MostRelevantMoviesbyContext(clratings)
         results = FilterContext2(results,context)
   return results
@@ -118,8 +122,6 @@ def EnsembleSamples(subsets,mode,nb,pivot):
     return result
 @st.experimental_memo
 def contentbased(user,movies,ratings):
-    movies.dropna(subset=['movie_info'], inplace=True)
-    movies = movies.reset_index()
     allmovies = ratings.movieId.unique()
     allmovies = list(set(allmovies)-set(movies.rotten_tomatoes_link))
     tf = TfidfVectorizer(stop_words='english')
@@ -141,55 +143,53 @@ def contentbased(user,movies,ratings):
     for movie in allmovies:
         cosine_sim_df.loc[len(cosine_sim_df.index)]= [movie,0]
     return cosine_sim_df
-
 def MovieList():
-    if(st.session_state['context1'] == True):
-      num = st.session_state['numrec5']
-      results = Evaluations()
-      temp = results[:num]
-      movieslist = list()
-      for i in temp:
-       movieslist.append(i)
-    else : 
-      num = st.session_state['numrec5']
-      results = Evaluations().movieId.unique()
-      temp = results[:num]
-      movieslist = list()
-      for i in temp:
-       movieslist.append(i)
+  results= PlotHybrid()[0]
+  movieslist = list()
+  num = st.session_state['numrec5']
+  if(st.session_state['context1']==False):
+    results = results.movieId.unique()
+    temp = results[:num]
+    for i in temp:
+     movieslist.append(i)
+  else : 
+    temp = results[:num]
+    for i in temp:
+     movieslist.append(i)
+  return movieslist
 
 
-    return movieslist
-def PlotsColab():
-    lod = st.session_state["lod1"]
-    sentiment =st.session_state["sentiment1"]
-    results = Evaluations()
-    results = results.sort_values(by=['probability'],ascending=False)
-    results = results.reset_index()
-    n=96
+def PlotHybrid():
+  lod = st.session_state["lod1"]
+  sentiment =st.session_state["sentiment1"]
+  n=96
+  i=1
+  recalls = []
+  precisions = []
+  results = Evaluations() 
+  if(lod==True and sentiment==True):
+    testUser = np.array(pivotsentimentlod.iloc[int(st.session_state['select1'])-1,:],copy=True)
+    rev = ListSpecRel(testUser)
+  elif(lod==True and  sentiment==False):
+    testUser = np.array(pivotlod.iloc[int(st.session_state['select1'])-1,:],copy=True)
+    rev = ListSpecRel(testUser)
+  elif(sentiment==True and lod==False):
+    testUser = np.array(pivotsentiment.iloc[int(st.session_state['select1'])-1,:],copy=True)
+    rev = ListSpecRel(testUser)
+  else : 
+    testUser = np.array(pivot.iloc[int(st.session_state['select1'])-1,:],copy=True)
+    rev = ListSpecRel(testUser)
+  if(st.session_state["context1"] == True):
+    
     i=1
-    recalls = []
-    precisions = []
-    if(lod==True and sentiment==True):
-      testUser = np.array(pivotsentimentlod.iloc[int(st.session_state['select1'])-1,:],copy=True)
-      rev = ListSpecRel(testUser)
-    elif(lod==True and  sentiment==False):
-      testUser = np.array(pivotlod.iloc[int(st.session_state['select1'])-1,:],copy=True)
-      rev = ListSpecRel(testUser)
-    elif(sentiment==True and lod==False):
-      testUser = np.array(pivotsentiment.iloc[int(st.session_state['select1'])-1,:],copy=True)
-      rev = ListSpecRel(testUser)
-    else : 
-      testUser = np.array(pivot.iloc[int(st.session_state['select1'])-1,:],copy=True)
-      rev = ListSpecRel(testUser)
     while(i<n):
       rec = 0
       prec = 0
       hr=0
-      temp = results.loc[0:i-1,:]
+      temp = results[:i]
       for k in range(len(temp)):
-        if  temp['movieId'][k] in rev:
-         hr+=1
+        if  temp[k] in rev:
+          hr+=1
       prec =  (hr)/i
       if(len(rev)!=0):
         rec =  (hr)/len(rev)
@@ -197,8 +197,28 @@ def PlotsColab():
       i+=1
       precisions.append(prec)
       recalls.append(rec)
-    mesures = np.column_stack((precisions,recalls))       
-    return result,mesures,len(rev) 
+    mesures = np.column_stack((precisions,recalls))  
+  else: 
+    results = results.sort_values(by=['probability'],ascending=False)
+    results = results.reset_index()
+    while(i<n):
+      rec = 0
+      prec = 0
+      hr=0
+      temp = results.loc[0:i-1,:]
+      for k in range(len(temp)):
+        if  temp['movieId'][k] in rev:
+          hr+=1
+      prec =  (hr)/i
+      if(len(rev)!=0):
+        rec =  (hr)/len(rev)
+      else: rec=0
+      i+=1
+      precisions.append(prec)
+      recalls.append(rec)
+    mesures = np.column_stack((precisions,recalls))  
+  return results,mesures,len(rev) 
+
 st.set_page_config(
     page_title="Filtrage Hybride",
     page_icon="👋",
@@ -212,7 +232,8 @@ ratings = st.session_state["ratings"]
 pivotsentiment = st.session_state["pivotsentiment"]
 sentimentratings = st.session_state["sentimentratings"]
 movies = st.session_state["movies"]
-
+lodratings = st.session_state["lodratings"]
+sentimentlodratings = st.session_state["sentimentlodratings"]
 cllodratings = st.session_state["cllodratings"]
 clsentimentlodratings = st.session_state["clsentimentlodratings"]
 clsentimentratings =  st.session_state["clsentimentratings"]
@@ -224,13 +245,12 @@ st.sidebar.write("Paramètres Filtrage Hybride")
 lod = st.sidebar.checkbox('Linked Open Data',key='lod1')
 context = st.sidebar.checkbox('Informations Contextuelles',key='context1')
 sentiment = st.sidebar.checkbox('Analyse de Sentiments',key='sentiment1')
-st.sidebar.number_input("Alpha",0.2,1.0,step=0.1,key='alpha')
+alpha = st.sidebar.number_input("Alpha",0.2,1.0,step=0.1,key='alpha')
 number = st.number_input("Saisissez votre numéro d'utilisateur",1,8690,key='select1',value=1)
 numberec = st.slider("Séléctionnez le nombre de recommandations à afficher",1,96,key='numrec5',on_change=MovieList,value=1)
-movie = MovieList()
-for i in movie:
+Results = PlotHybrid()
+for i in MovieList():
   st.text(i)
-Results = PlotsColab()
 if(Results[2]!=0):
   results = pd.DataFrame(Results[1],columns=['Précision','Rappel'])
   st.line_chart(data=results)

@@ -198,11 +198,11 @@ def FilterContext(results,movies):
             result.append(elt)
     return result
 def EnsembleSamples(nb):
-    itemslist = np.loadtxt("LOD/Subsets.txt")
+    itemslist = np.loadtxt("Classic/Subsets.txt")
     itemlist = np.concatenate(itemslist)
     values = list()
     for i in range(itemslist.shape[0]):
-        model = load_model("SentimentsLOD/"+str(i))
+        model = load_model("Classic/"+str(i))
         testUser = np.array(pivot.iloc[nb,:],copy=True)
         testUser = testUser.reshape(1,testUser.shape[0])
         results = model.predict(testUser)
@@ -236,8 +236,8 @@ def contentbased(user,movies,ratings):
         cosine_sim_df.loc[len(cosine_sim_df.index)]= [movie,0]
     return relRating.movieId.unique(),cosine_sim_df
 """Création des inputs et targets du RDN"""
-ratings = pd.read_csv("SentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
-ratings2 = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ratings2 = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
 movies = pd.read_csv('movies.csv', delimiter=';')
 movies.dropna(subset=['movie_info'], inplace=True)
 movies = movies.reset_index()
@@ -266,7 +266,7 @@ def Hybrid(alpha,nb):
     return hybrid
 def FilterContext2(results,movies):
     result = list()
-    for i in range(results.shape[0]):
+    for i in range(150):
         if(results['movieId'][i] in movies):
             result.append(results['movieId'][i])
     return result
@@ -312,12 +312,13 @@ for j in range(50):
  i=1 
  testUser = np.array(pivot.iloc[j,:],copy=True)
  rev  = ListSpecRel(testUser)
- if(len(rev)>1):
-  print(j)
-  results = Hybrid(0.8,j)
-  results = results.sort_values(by=['probability'],ascending=False)
-  results = results.reset_index()
-  results = FilterContext2(results,context)
+ print(j)
+ results = Hybrid(0.8,j)
+ results = results.sort_values(by=['probability'],ascending=False)
+ results = results.reset_index()
+ results = FilterContext2(results,context)
+ print(results)
+ if(len(rev)!=0):
   recalls.append(len(rev))
   precisions.append(len(rev))    
   while(i<n):   

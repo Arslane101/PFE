@@ -28,8 +28,19 @@ def Relevant(matrix):
             if(matrix.iloc[i,j]==1) and j not in relevants:
               relevants.append(j)
     return relevants   
-def ContextFiltering(results):
-  return results
+def where(arr,nb):
+    for i in range(len(arr)):
+        if(arr[i]==nb):
+            return i
+def ContextFiltering(results,movies):
+    movie = list()
+    for mov in movies:
+        movie.append(where(list_movies,mov))
+    result = list()
+    for elt in results:
+        if( elt in movie):
+            result.append(elt)
+    return result
 def Evaluations():
   lod = st.session_state["lod"]
   sentiment =st.session_state["sentiment"]
@@ -69,7 +80,6 @@ def EnsembleSamplesTesting(subsets,mode,nb,pivot):
         result = pd.DataFrame(columns=['movieId','probability'])
         for i in range(copyresults.shape[0]):
          result.loc[len(result.index)]=[list_movies[int(itemlist[i])],copyresults[i]]
-    
         results = np.argsort(results.reshape(itemlist.shape[0]))[::-1] 
         for i in range(results.shape[0]):
          results[i] = int(itemlist[results[i]]) 
@@ -78,7 +88,7 @@ def EnsembleSamplesTesting(subsets,mode,nb,pivot):
    
 def MovieList():
     num = st.session_state['numrec2']
-    result,results = Evaluations()
+    results = Evaluations()
     temp = results[:num]
     movieslist = list()
     for i in temp:
