@@ -14,10 +14,10 @@ def ChargerDataset(ratings,th):
         else: ratings.loc[i,'rating']=int(0) 
 @st.experimental_memo
 def LoadData():
-  ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'])
-  sentimentratings = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
-  lodratings =  pd.read_csv("binarizedratingsLOD.csv",delimiter=";",parse_dates=['review_date'])
-  sentimentlodratings =  pd.read_csv("BinarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
+  ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+  sentimentratings = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+  lodratings =  pd.read_csv("binarizedratingsLOD.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+  sentimentlodratings =  pd.read_csv("BinarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
   movies = pd.read_csv("films.csv",delimiter=";") 
   pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   pivotsentiment = sentimentratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
@@ -26,10 +26,10 @@ def LoadData():
   return ratings,sentimentratings,lodratings,sentimentlodratings,pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies
 @st.experimental_memo
 def ClassicData():
-  ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'])
-  sentimentratings = pd.read_csv("SentimentRatings.csv",delimiter=";",parse_dates=['review_date'])
-  lodratings =  pd.read_csv("lodratings.csv",delimiter=";",parse_dates=['review_date'])
-  sentimentlodratings =  pd.read_csv("SentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'])
+  ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+  sentimentratings = pd.read_csv("SentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+  lodratings =  pd.read_csv("lodratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+  sentimentlodratings =  pd.read_csv("SentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
   return ratings,sentimentratings,lodratings,sentimentlodratings
 st.set_page_config(
     page_title="Comparaison des Différentes Approches",

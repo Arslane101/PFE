@@ -10,7 +10,7 @@ scikit_learn
 seaborn
 streamlit
 tensorflow
-tensorflow_gpu
+tensorflow
 tensorflow_hub
 transformers
 tensorboard
