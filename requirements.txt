@@ -1,6 +1,6 @@
 bert==2.2.0
 bert_tensorflow==1.0.4
-keras==2.9.0
+keras==2.10.0
 matplotlib==3.4.3
 nltk==3.7
 numpy==1.22.4
