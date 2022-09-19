@@ -12,8 +12,6 @@ from sklearn.model_selection import train_test_split
 
 
 def contentbased(user,movies,ratings):
-      movies.dropna(subset=['movie_info'], inplace=True)
-      movies = movies.reset_index()
       allmovies = ratings.movieId.unique()
       allmovies = list(set(allmovies)-set(movies.rotten_tomatoes_link))
       tf = TfidfVectorizer(stop_words='english')
@@ -36,10 +34,16 @@ def contentbased(user,movies,ratings):
           cosine_sim_df.loc[len(cosine_sim_df.index)]= [movie,0]
       return relRating.movieId.unique(),cosine_sim_df
     
-ratings = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
+ratings = pd.read_csv("BinarizedSentimentLODRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
 #ratings.dropna(axis=0, subset=['rating'], inplace=True)
 #ratings.drop_duplicates(subset=['movieId', 'userId'], inplace=True)
 movies = pd.read_csv('movies.csv', delimiter=';')
+def FilterContext2(results,movies):
+    result = list()
+    for i in range(150):
+        if(results['movieId'][i] in movies):
+            result.append(results['movieId'][i])
+    return result
 
 
 j=0
@@ -47,7 +51,7 @@ n=96
 totalprec = list()
 totalrec = list()
 totalf = list()
-for j in range(550):
+for j in range(100):
  print(j)
  recalls = list()
  precisions = list()

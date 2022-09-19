@@ -54,9 +54,9 @@ def Relevant(matrix):
             if(matrix.iloc[i,j]==1) and j not in relevants:
               relevants.append(j)
     return relevants   
-def MostRelevantMoviesbyContext(ratings):
+def MostRelevantMoviesbyContext(ratings,min):
     currentdate = datetime.now()
-    popularmovies = MostRatedMovies(ratings)
+    popularmovies = MostRatedMovies(ratings,min)
     currentday = currentdate.strftime("%A")
     weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
     weekend = ["Saturday","Sunday"]
@@ -99,7 +99,7 @@ def where(arr,nb):
         if(arr[i]==nb):
             return i
 def EnsembleSamplesTraining():
-  itemslist = np.loadtxt("LOD/Subsets.txt")
+  itemslist = np.loadtxt("Subsets.txt")
   i=0
   nbrel= ratings[ratings["rating"] == 1.0].shape[0]
   k=0
@@ -115,8 +115,8 @@ def EnsembleSamplesTraining():
   print(Target.shape)     
   #Splitting the Data
   i=0
-  for  i in range(itemslist.shape[0]):
-   itembis = itemslist[i,:]
+  for  i in range(0,1):
+   itembis = itemslist
    count = 0
    for j in range(len(Target)):
         if(Target[j] in itembis):
@@ -152,18 +152,18 @@ def EnsembleSamplesTesting(nb):
         results[i] = int(itemlist[results[i]]) 
     return results
 def EnsembleLearning():
-  itembis = np.loadtxt("LOD/Subsets.txt")
-  i=3
-  liste = itembis[i,:]
+  itembis = np.loadtxt("Subsets.txt")
+  i=0
+  liste = itembis[0]
   InputTest = np.loadtxt("InputTe"+str(i)+".txt")
   TargetTest = np.loadtxt("TargetTe"+str(i)+".txt")
   InputTrain =  np.loadtxt("InputTr"+str(i)+".txt")
   TargetTrain = np.loadtxt("TargetTr"+str(i)+".txt")
   model = Sequential()
   model.add(Input(shape=InputTrain.shape[1]))
-  model.add(Dense(200, activation='relu'))
-  model.add(Dropout(rate=0.2))
   model.add(Dense(100, activation='relu'))
+  model.add(Dropout(rate=0.2))
+  model.add(Dense(50, activation='relu'))
   model.add(Dropout(rate=0.2))
   model.add(Dense(len(liste),activation='softmax'))
   model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
@@ -184,9 +184,9 @@ def MitigateColdStart():
             newrating = random.randrange(4,5)
             newratings.loc[len(newratings.index)] = [mv,user,newrating,'','']
     newratings.to_csv("new_ratings.csv")
-def MostRatedMovies(ratings):
+def MostRatedMovies(ratings,min):
     ratings = ratings.groupby(['movieId'])[['rating']].mean()
-    ratings = ratings[ratings["rating"] >= 3]
+    ratings = ratings[ratings["rating"] >= min]
     return ratings.index.unique().tolist()
 def FilterContext(results,movies):
     movie = list()
@@ -228,7 +228,7 @@ def contentbased(user,movies,ratings):
     featureMatU = (pd.DataFrame((featureMatU.mean()),
                                     columns=['similarity'])).transpose()       
     cosine_sim = cosine_similarity(featureMatU, tfidf_matrix_item)
-    cosine_sim_df = pd.DataFrame(columns=['movieId','similarity'])
+    cosine_sim_df = pd.DataFrame(columns=['movieId','probability'])
     cosine_sim = cosine_sim.T
     for i in range(cosine_sim.shape[0]):
             cosine_sim_df.loc[len(cosine_sim_df.index)]= [movies['rotten_tomatoes_link'][i],cosine_sim[i][0]]
@@ -251,60 +251,23 @@ def Hybrid(alpha,nb):
     return hybrid
 def FilterContext2(results,movies):
     result = list()
-    for i in range(150):
+    for i in range(results.shape[0]):
         if(results['movieId'][i] in movies):
             result.append(results['movieId'][i])
     return result
 
 """Création des inputs et targets du RDN"""
 ratings = pd.read_csv("subratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
-ChargerDataset()
-movies = pd.read_csv('movies.csv', delimiter=';')
+ChargerDataset(ratings,4)
+ratings.to_csv("binarizedsubratings.csv")
+movies = pd.read_csv('films.csv', delimiter=';')
 pivot = ratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
 n_users = pivot.index.unique().shape[0]
 n_items = pivot.columns.unique().shape[0]
 list_movies = pivot.columns.unique().tolist()
 list_users = pivot.index.unique().tolist()
-context = MostRelevantMoviesbyContext(ratings)
-#MitigateColdStart()
+
 subsets = RandomSubsets(n_items,1)
 np.savetxt("Subsets.txt",np.array(subsets).astype(int),fmt='%d')
 
-"""j=0
-n=96
-totalprec = list()
-totalrec = list()
-totalf = list()
-for j in range(50):
- recalls = list()
- precisions = list()
- recalls.append(j)
- precisions.append(j)
- i=1 
- testUser = np.array(pivot.iloc[j,:],copy=True)
- rev  = ListSpecRel(testUser)
- print(j)
- results = Hybrid(0.8,j)
- results = results.sort_values(by=['probability'],ascending=False)
- results = results.reset_index()
- results = FilterContext2(results,context)
- print(results)
- if(len(rev)!=0):
-  recalls.append(len(rev))
-  precisions.append(len(rev))    
-  while(i<n):   
-    hr=0
-    temp = results[:i] 
-    for k in range(len(temp)):
-         if  temp[k] in rev:
-          hr+=1
-    prec = (hr)/i
-    rec =  (hr)/len(rev) 
-    precisions.append(prec)
-    recalls.append(rec)
-    i+=5
-  totalprec.append(np.asarray(precisions))
-  totalrec.append(np.asarray(recalls))
-np.savetxt("AllPrecisions.txt", np.vstack(totalprec).astype(float),fmt='%.2f')
-np.savetxt("AllRecalls.txt",np.vstack(totalrec).astype(float),fmt='%.2f')
-"""
+EnsembleSamplesTraining()

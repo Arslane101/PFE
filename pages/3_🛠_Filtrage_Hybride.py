@@ -48,7 +48,7 @@ def MostRelevantMoviesbyContext(ratings):
     return listmovies
 def MostRatedMovies(ratings):
     ratings = ratings.groupby(['movieId'])[['rating']].mean()
-    ratings = ratings[ratings["rating"] >= 4]
+    ratings = ratings[ratings["rating"] >= 3]
     return ratings.index.unique().tolist()
 @st.experimental_memo   
 def Hybrid(subsets,mode,alpha,nb,pivot,ratings):

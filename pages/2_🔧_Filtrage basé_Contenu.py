@@ -35,12 +35,15 @@ def MostRelevantMoviesbyContext(ratings):
     return listmovies
 def MostRatedMovies(ratings):
     ratings = ratings.groupby(['movieId'])[['rating']].mean()
-    ratings = ratings[ratings["rating"] >= 4]
+    ratings = ratings[ratings["rating"] >= 3]
     return ratings.index.unique().tolist()
-@st.experimental_memo
+@st.experimental_singleton
 def FilterContext2(results,movies):
     results = results.sort_values(by=['probability'],ascending=False)
     results = results.reset_index()
+    print(results)
+    movies.sort()
+    print(movies)
     result = list()
     for i in range(results.shape[0]):
         if(results['movieId'][i] in movies):
@@ -89,14 +92,12 @@ def MovieListCB():
   return movieslist,results,mesures,length
 @st.experimental_memo
 def contentbased(user,movies,ratings):
-        movies.dropna(subset=['movie_info'], inplace=True)
-        movies = movies.reset_index()
         allmovies = ratings.movieId.unique()
         allmovies = list(set(allmovies)-set(movies.rotten_tomatoes_link))
         tf = TfidfVectorizer(stop_words='english')
         tfidf_matrix_item = tf.fit_transform(movies['movie_info'])
         userRate = ratings[ratings['userId'] == user]
-        userM = movies[movies['rotten_tomatoes_link'].isin(userRate['movieId'])]            
+        userM = movies[movies['rotten_tomatoes_link'].isin(userRate['movieId'])]    
         featureMat = pd.DataFrame(tfidf_matrix_item.todense(),
                                         columns=tf.get_feature_names_out(),
                                         index=movies.rotten_tomatoes_link)
