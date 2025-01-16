@@ -12,7 +12,6 @@ def ChargerDataset(ratings,th):
         if int(ratings['rating'][i]) >= int(th):
             ratings.loc[i,'rating']= int(1)
         else: ratings.loc[i,'rating']=int(0) 
-@st.experimental_memo
 def LoadData():
   ratings = pd.read_csv("binarizedratings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
   sentimentratings = pd.read_csv("BinarizedSentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
@@ -24,7 +23,6 @@ def LoadData():
   pivotlod = lodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   pivotsentimentlod = sentimentlodratings.pivot_table(index=['userId'],columns=['movieId'],values='rating',fill_value=0)
   return ratings,sentimentratings,lodratings,sentimentlodratings,pivot,pivotlod,pivotsentiment,pivotsentimentlod,movies
-@st.experimental_memo
 def ClassicData():
   ratings = pd.read_csv("normalizedreviews.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
   sentimentratings = pd.read_csv("SentimentRatings.csv",delimiter=";",parse_dates=['review_date'],infer_datetime_format=True)
